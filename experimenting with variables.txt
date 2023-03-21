@@ -1,0 +1,55 @@
+attr_mass of each ParticleAttractor:
+creates that super fun gravitational pull. raise this.
+
+mul_attractors:
+general multiplier for attraction, kinda just makes the attractors become black holes / garbage compactors (which piles all the particles into one spot where they get stuck, therefore sucking the fun out of everything). lower this.
+	*edit!!
+	once you force the particles to individually take up space with mul_collision, this variable becomes so-so-so fun. it's basically my speed slider. i use it to balance out the hard slow from damping and keep things interesting.
+
+mul_cohesion:
+how much each particle wants to stick to another particle. i think.
+in theory you want this high bc, idk, water tension - but it ends up making clumps? like a swarm of angry bees. still deciding what the optimal level for this is.
+if you crank it high enough you start to get that funny glubglubglub shape that water flowing from a pipe has, but it doesn't look right here.
+however, leave it too low and you get the scattered bouncy balls look. definitely not "water" enough :/
+
+size_display, size_collision:
+self explanatory, keep sprite > collider for a nice overlap
+
+size_cohesion:
+...huh. what's the difference between size_cohesion and mul_?
+let's find out :) matrix time
+
+	all mul, no size
+	===
+	a few scattered bits, but most of them clump into small awkward balls. avoid the angry bees at all costs.
+	
+	all size, no mul
+	===
+	they all arc to the new destination in this magnet-like pattern - and do a really gorgeous swirl around the attractors when they get there!!
+	not the biggest fan of the scattering though. it happens the most when you wave back and forth really fast - i think the particles consider each other obstacles. i would turn it off but that's probably a good thing.)
+
+	max both
+	===
+	oooooh if you crank them BOTH up (38 and 8) it looks pretty cool. like a giant water blob. but... then you run into a new issue: the particles want to cling to each other MORE than they want to move to the attractors. (even if you stack them.)
+
+	zero both
+	===
+	awful amount of scattering at any speed
+
+
+mul_collision:
+ohhhh this solves the black hole issue!! the particles stopped stacking once i raised this past 2.0 or so. now they gather round instead of just disappearing to nowhere. scoreeee.
+
+mul_obstacles:
+still figuring this one out? doesn't seem to affect what i'm doing in this sketch. (yet.)
+
+
+**velocity damping is... interesting. it gets rid of that fun planetarium swirl, but in return you get this gorgeous "weight-y" feel that gives it some drama and really pulls everything together? (literally lmao.) i think i like the effect best at 0.985??
+the slower motions forces you to be deliberate with your movements too (though i would speed it up a tiny bit if i could - 0.99 technically does this but ruins the charm)
+and because of the nature of it - no more messy flicks flying all over the screen! (i do want "splash" effects eventually - but i think it has to happen en masse or it just looks weird.)
+
+all in all it definitely captures the "water whip" look!! katara would be proud :)
+
+
+what would this look like with a LOT of particles?
+processing doesn't seem to be a problem - right now we're running 400+ fps with 18,739
