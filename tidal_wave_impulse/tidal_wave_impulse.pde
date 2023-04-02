@@ -1,15 +1,54 @@
-/**
+/*
+      Tidal Wave
+    by Ekemini Nkanta
+    
+
+ * hello!! :)
+ * i could not have pulled this off without: 
+
+ * PixelFlow - Thomas Diewald
+ *   A Processing/Java library for high performance GPU-Computing.
+ *   github.com/diwi/PixelFlow.git
+ *   thomasdiewald.com
+ *
+ * KinectPV2 - Thomas Sanchez Lengeling
+ *   Kinect for Windows v2 library for Processing.
+ *   codigogenerativo.com
  * 
- * PixelFlow | Copyright (C) 2017 Thomas Diewald - www.thomasdiewald.com
- * 
- * https://github.com/diwi/PixelFlow.git
- * 
- * A Processing/Java library for high performance GPU-Computing.
- * MIT License: https://opensource.org/licenses/MIT
- * 
+ 
+ MIT License: https://opensource.org/licenses/MIT
+ 
  */
 
+/*
+  TO-DO: 
+  [*] tweak particle parameters to feel like waterbending / ultimate control
+        (slow it down some, high attraction for a commanding pull, flow should feel like a dance)
+  [*] change particle colors to ocean blues
+  [ ] how many particles should we start with?
+  
+  [ ] add gravity
+  [ ] oooh the glitched particles unintentionally made that ocean-filtering-through-sand effect.
+       spawn some slow-moving dot obstacles on purpose?
 
+  [ ] import kinect library
+  [ ] make left & right hands add velocity impulse
+      [ ] maybe only when your palms are open?? (3 states: open, closed, lasso)
+  [ ] oh - what should we do if multiple people are detected?
+  
+  EXTRAS:
+  [ ] ??interactive sound??
+        (start off realistic, then remix / abstract it - samplefocus is your friend)
+  
+  [ ] idle state: turbulent waves? come up with some kind of motion
+  
+  [ ] tweak bloom: use misc>bloom_demo for reference
+  [ ] swap sprite?
+  [ ] any background visuals?
+  
+  [ ] make the sides apply impulse of an opposite force for a "splash" / wave crash effect   (is this necessary anymore?)
+      
+*/
 
 import java.util.Locale;
 
@@ -23,18 +62,6 @@ import processing.core.*;
 import processing.opengl.PGraphics2D;
 
 
-//
-//
-// Basic starter demo for a FlowFieldParticle simulation.
-//
-// Particle Spawning, Animated Obstacles, Mouse Impulse, Cohesion
-//
-// --- controls ----
-// LMB       ... spawn particles
-// mousedrag ... add velocity impulse
-//
-//
-
 int viewport_w = 1280;
 int viewport_h = 720;
 int viewport_x = 230;
@@ -43,12 +70,15 @@ int viewport_y = 0;
 PGraphics2D pg_canvas;
 PGraphics2D pg_obstacles;
 PGraphics2D pg_impulse;
+PGraphics2D pg_gravity;
 
 DwPixelFlow context;
 
 DwFlowFieldParticles particles;
 DwFlowField ff_acc;
 DwFlowField ff_impulse;
+
+float gravity = 1;
 
 
 public void settings() {
@@ -58,8 +88,7 @@ public void settings() {
   smooth(0);
 }
 
-
-public void setup(){
+public void setup() {
   surface.setLocation(viewport_x, viewport_y);
 
   context = new DwPixelFlow(this);
@@ -72,7 +101,7 @@ public void setup(){
   particles.param.col_A = new float[]{0.10f, 0.50f, 1.00f, 5};
   particles.param.col_B = new float[]{0.05f, 0.25f, 0.50f, 0};
   
-  particles.param.velocity_damping  = .998f;  // originally 0.995f, keep this high for responsiveness but never 1
+  particles.param.velocity_damping  = .997f;  // originally 0.995f, keep this high for responsiveness but never 1
   particles.param.steps = 1;
   particles.param.shader_collision_mult = 0.2f;
   
@@ -81,8 +110,8 @@ public void setup(){
   particles.param.size_cohesion  = 30;  // i was gonna keep my 18 from tidalwave_attractors but it looks god awful
   
   particles.param.mul_col = 1f;  // collision *multiplier*
-  particles.param.mul_coh = 0.22f;  // cohesion, originally 1.00f
-  //particles.param.mul_obs = 2f;  // obstacles 2.00f
+  particles.param.mul_coh = .22f;  // cohesion, originally 1.00f (too much resistance)
+  particles.param.mul_obs = 3f;  // obstacles
   
   
   ff_acc = new DwFlowField(context);
@@ -102,6 +131,9 @@ public void setup(){
 
   pg_impulse = (PGraphics2D) createGraphics(width, height, P2D);
   pg_impulse.smooth(0);
+  
+  pg_gravity = (PGraphics2D) createGraphics(width, height, P2D);
+  pg_gravity.smooth(0);
 
   frameRate(1000);
 }
@@ -111,7 +143,8 @@ float impulse_max = 556;
 float impulse_mul = 15;
 float impulse_tsmooth = 0.90f;
 int   impulse_blur  = 0;
-public void addImpulse(){
+
+public void addImpulse() {
   
   int w = width;
   int h = height;
@@ -126,7 +159,7 @@ public void addImpulse(){
   pg_impulse.noStroke();
   pg_impulse.rectMode(CENTER);
   
-  if(mousePressed){
+  if (mousePressed) {
     // impulse center/velocity
     float mx = mouseX;
     float my = mouseY;
@@ -135,21 +168,20 @@ public void addImpulse(){
     // clamp velocity
     float vv_sq = vx*vx + vy*vy;
     float vv_sq_max = impulse_max*impulse_max;
-    if(vv_sq > vv_sq_max){
+    if (vv_sq > vv_sq_max) {
       vx = impulse_max * vx / sqrt(vv_sq);
       vy = impulse_max * vy / sqrt(vv_sq);
     }
     // map velocity, to UNSIGNED_BYTE range
     vx = 127 * vx / impulse_max;
     vy = 127 * vy / impulse_max;
-    if(vv_sq != 0){
+    if (vv_sq != 0) {
       pg_impulse.fill(mid+vx, mid+vy, 0);
       pg_impulse.ellipse(mx, my, 300, 300);  //pg_impulse.ellipse(mx, my, 100, 100);
     }
   }
   pg_impulse.endDraw();
 
-  
   // create impulse texture
   ff_impulse.resize(w, h);
   {
@@ -160,20 +192,46 @@ public void addImpulse(){
   }
   
   // create acceleration texture
-  ff_acc.resize(w, h);
-  {
-    Merge.TexMad ta = new Merge.TexMad(ff_impulse.tex_vel, 1, 0);
-    DwFilter.get(context).merge.apply(ff_acc.tex_vel, ta);
-  }
+  //ff_acc.resize(w, h);
+  //{
+  //  Merge.TexMad ta = new Merge.TexMad(ff_impulse.tex_vel, 1, 0);
+  //  DwFilter.get(context).merge.apply(ff_acc.tex_vel, ta);
+  //}
+  ///////
 }
 
-public void draw(){
+public void addGravity() {
+  
+  int w = width;
+  int h = height;
+  
+  // render "gravity"
+  pg_gravity.beginDraw();
+  pg_gravity.blendMode(REPLACE);
+  pg_gravity.background(0, 255, 0);
+  pg_gravity.endDraw();
+  
+  // create acceleration texture
+    ff_acc.resize(w, h);
+    {
+      float mul_gravity = -gravity/10f;
+      Merge.TexMad ta = new Merge.TexMad(ff_impulse.tex_vel, 1, 0);
+      Merge.TexMad tb = new Merge.TexMad(pg_gravity, mul_gravity, 0);
+      DwFilter.get(context).merge.apply(ff_acc.tex_vel, ta, tb);
+    }
+}
+
+public void draw() {
   
   particles.param.timestep = 1f/frameRate;
-  
+      
   updateScene();
+  
   spawnParticles();
+  
   addImpulse();
+  
+  addGravity();
   
   // update particle simulation
   particles.resizeWorld(width, height); 
@@ -182,7 +240,7 @@ public void draw(){
   
   // render obstacles + particles
   pg_canvas.beginDraw(); 
-  pg_canvas.background(0);  //pg_canvas.background(255);
+  pg_canvas.background(0);
   pg_canvas.image(pg_obstacles, 0, 0);
   pg_canvas.endDraw();
   particles.displayParticles(pg_canvas);
@@ -230,7 +288,6 @@ void updateScene() {
 }
 
 
-
 public void spawnParticles() {
   
   float px,py,vx,vy,radius;
@@ -247,13 +304,13 @@ public void spawnParticles() {
   vy = 0;
   
   DwFlowFieldParticles.SpawnRadial sr = new DwFlowFieldParticles.SpawnRadial();
-  sr.num(count);
-  sr.dim(radius, radius);
-  sr.pos(px, vh-1-py);
-  sr.vel(vx, vy);
-  particles.spawn(vw, vh, sr);
+  //sr.num(count);
+  //sr.dim(radius, radius);
+  //sr.pos(px, vh-1-py);
+  //sr.vel(vx, vy);
+  //particles.spawn(vw, vh, sr);
 
-  if(mousePressed && mouseButton == LEFT){     
+  if (mousePressed && mouseButton == LEFT) {     
     count = ceil(particles.getCount() * 0.01f);
     count = min(max(count, 1), 10000);  
     radius = ceil(sqrt(count));
@@ -268,5 +325,4 @@ public void spawnParticles() {
     sr.vel(vx, vy);
     particles.spawn(vw, vh, sr);
   }
-  
 }
