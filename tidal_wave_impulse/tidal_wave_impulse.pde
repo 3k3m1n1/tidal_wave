@@ -23,32 +23,38 @@
 /*
   TO-DO:
  [*] tweak particle parameters to feel like waterbending / ultimate control
- (slow it down some, high attraction for a commanding pull, flow should feel like a dance)
+       (slow it down some, high attraction for a commanding pull, flow should feel like a dance)
  [*] change particle colors to ocean blues
  [*] add gravity
- [ ] how many particles should we start with?
+ [...] explore particle shaders + blend modes
+ [ ] play with bloom
+ [...] how many particles should we start with?
  
- [ ] import kinect library
- [ ] make left & right hands apply impulse instead of mouseX/Y
+ [*] import kinect library
+ [*] make left & right hands apply impulse instead of mouseX/Y
    [ ] ...maybe only when your palms are open?? (3 states: open, closed, lasso)
+ [ ] map skeleton depth coordinates from 512x424 to full window
+ [ ] what should we do if multiple people are detected?
+       only use the closest skeleton? specify a cut-off point (to enforce in person)?
+       ^^^let's see if joint.getZ() returns a real value, otherwise we'll have to check the depth img
  
  [ ] oooh the glitched particles unintentionally made that ocean-filtering-through-sand effect.
  spawn some slow-moving dot obstacles on purpose?
  
- [ ] what should we do if multiple people are detected?
-       *only use the closest skeleton?
- 
- EXTRAS:
  [ ] ??interactive sound??
  (start off realistic, then remix / abstract it - samplefocus is your friend)
  
- [ ] idle state: turbulent waves? come up with some kind of motion
  
- [ ] tweak bloom: use misc>bloom_demo for reference
- [ ] swap sprite?
+ EXTRAS:
+ [ ] subtle/elegant ideas for hand visuals?
+       not just for debugging, but to give feedback to users (tech-savvy or not)
+ 
+ [ ] idle state: turbulent waves? come up with some kind of motion to draw people in
+ 
+ [ ] sprite swap?
  [ ] any background visuals?
  
- [ ] make the sides apply impulse of an opposite force for a "splash" / wave crash effect   (is this necessary anymore?)
+ [ ] ?make the sides apply impulse of an opposite force for a "splash" / wave crash effect   (is this necessary anymore?)
  
  */
 
@@ -85,6 +91,9 @@ DwFlowField ff_impulse;
 float gravity = 1;
 
 KinectPV2 kinect;
+ArrayList<KSkeleton> skeletonArray;
+boolean bodyDetected;
+float kx, ky = 0;
 float pkx, pky;
 
 
@@ -119,8 +128,7 @@ public void setup() {
   particles.param.mul_col = 1f;  // collision *multiplier*
   particles.param.mul_coh = .22f;  // cohesion, originally 1.00f (too much resistance)
   particles.param.mul_obs = 3f;  // obstacles
-
-
+  
   ff_acc = new DwFlowField(context);
   ff_acc.param.blur_iterations = 0;
   ff_acc.param.blur_radius     = 1;
@@ -176,14 +184,15 @@ public void addImpulse() {
 
   // apply impulse with kinect hands instead of mouse press
         // TO-DO: how do i apply impulse from more than one xy coordinate?? i need the right AND left hands (aaand should include support for >1 skeleton)
-  ArrayList<KSkeleton> skeletonArray =  kinect.getSkeletonDepthMap();
-  if (skeletonArray.size() > 0) {                              //for (int i = 0; i < skeletonArray.size(); i++) {
+  skeletonArray =  kinect.getSkeletonDepthMap();
+  bodyDetected = skeletonArray.size() > 0;
+  if (bodyDetected) {                              //for (int i = 0; i < skeletonArray.size(); i++) {
     KSkeleton skeleton = (KSkeleton) skeletonArray.get(0);
     if (skeleton.isTracked()) {                                //if (mousePressed) {
       // get impulse center
       KJoint[] joints = skeleton.getJoints();
-      float kx = joints[KinectPV2.JointType_HandRight].getX();        //float mx = mouseX;
-      float ky = joints[KinectPV2.JointType_HandRight].getY();        //float my = mouseY;
+      kx = joints[KinectPV2.JointType_HandRight].getX();        //float mx = mouseX;
+      ky = joints[KinectPV2.JointType_HandRight].getY();        //float my = mouseY;
   
       // calculate impulse velocity
       vx = (kx - pkx) * +impulse_mul;                           //vx = (mouseX - pmouseX) * +impulse_mul;
@@ -276,6 +285,15 @@ public void draw() {
   pg_canvas.beginDraw();
   pg_canvas.background(0);
   pg_canvas.image(pg_obstacles, 0, 0);
+  if (bodyDetected) {
+    KSkeleton skeleton = (KSkeleton) skeletonArray.get(0);
+    if (skeleton.isTracked() ) {    
+      pg_canvas.stroke(255, 100);
+      pg_canvas.strokeWeight(8);
+      pg_canvas.noFill();
+      pg_canvas.ellipse(kx, ky, 70, 70);
+    }
+  }
   pg_canvas.endDraw();
   particles.displayParticles(pg_canvas);
 
