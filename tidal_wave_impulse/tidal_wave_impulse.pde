@@ -26,7 +26,7 @@
        (slow it down some, high attraction for a commanding pull, flow should feel like a dance)
  [*] change particle colors to ocean blues
  [*] add gravity
- [...] explore particle shaders + blend modes
+ [*] explore particle shaders + blend modes
  [ ] play with bloom
  [...] how many particles should we start with?
  
@@ -114,20 +114,25 @@ public void setup() {
   particles = new DwFlowFieldParticles(context, 1024 * 1024);
 
   // blue! *-*
-  particles.param.col_A = new float[]{0.10f, 0.50f, 1.00f, 5};
+  particles.param.col_A = new float[]{0.10f, 0.50f, 1.00f, 1};
   particles.param.col_B = new float[]{0.05f, 0.25f, 0.50f, 0};
 
   particles.param.velocity_damping  = .997f;  // originally 0.995f, keep this high for responsiveness but never 1
   particles.param.steps = 1;
-  particles.param.shader_collision_mult = 0.2f;
 
   particles.param.size_display = 8;
   particles.param.size_collision = 6;  // keep slightly smaller than display for overlap
-  particles.param.size_cohesion  = 30;  // i was gonna keep my 18 from tidalwave_attractors but it looks god awful
+  particles.param.size_cohesion  = 30;
 
   particles.param.mul_col = 1f;  // collision *multiplier*
   particles.param.mul_coh = .22f;  // cohesion, originally 1.00f (too much resistance)
   particles.param.mul_obs = 3f;  // obstacles
+  
+  particles.param.shader_type = 1;  // particles glow bright upon collision + fade to black as they lose velocity! just like bioluminescent plankton!!!
+  particles.param.shader_collision_mult = 0.42;    // keep this in the mids for really pretty contrast + the element of surprise :) originally 0.2f
+  
+  //particles.param.blend_mode = 1;  // blend mode: add -> almost a winner, but the brightness is just so blown out. if bloom wasn't a thing i'd choose you
+                                    // use with particles.param.col_A = new float[]{0.10f, 0.50f, 1.00f, .2f} and particles.param.shader_collision_mult = 0.24
   
   ff_acc = new DwFlowField(context);
   ff_acc.param.blur_iterations = 0;
@@ -285,6 +290,7 @@ public void draw() {
   pg_canvas.beginDraw();
   pg_canvas.background(0);
   pg_canvas.image(pg_obstacles, 0, 0);
+  // debug kinect hands visual
   if (bodyDetected) {
     KSkeleton skeleton = (KSkeleton) skeletonArray.get(0);
     if (skeleton.isTracked() ) {    
@@ -325,7 +331,7 @@ void updateScene() {
   pg_obstacles.rect(10, 10, w-20, h-20);
 
   // animated obstacles
-  pg_obstacles.rectMode(CENTER);
+  //pg_obstacles.rectMode(CENTER);
   //pg_obstacles.pushMatrix();
   //{
   //  float px = sin(frameCount/240f) * 0.8f * w/2;
