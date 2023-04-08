@@ -33,8 +33,8 @@
  [*] import kinect library
  [*] make left & right hands apply impulse instead of mouseX/Y
    [ ] ...maybe only when your palms are open?? (3 states: open, closed, lasso)
- [ ] map skeleton depth coordinates from 512x424 to full window
- [ ] what should we do if multiple people are detected?
+ [*] map skeleton depth coordinates from 512x424 to full window
+ [...] what should we do if multiple people are detected?
        only use the closest skeleton? specify a cut-off point (to enforce in person)?
        ^^^let's see if joint.getZ() returns a real value, otherwise we'll have to check the depth img
  
@@ -46,16 +46,14 @@
  
  
  EXTRAS:
- [ ] subtle/elegant ideas for hand visuals?
+ [ ] subtle/elegant ideas for hand indicators?
        not just for debugging, but to give feedback to users (tech-savvy or not)
  
  [ ] idle state: turbulent waves? come up with some kind of motion to draw people in
  
  [ ] sprite swap?
  [ ] any background visuals?
- 
- [ ] ?make the sides apply impulse of an opposite force for a "splash" / wave crash effect   (is this necessary anymore?)
- 
+  
  */
 
 import java.util.Locale;
@@ -93,8 +91,8 @@ float gravity = 1;
 KinectPV2 kinect;
 ArrayList<KSkeleton> skeletonArray;
 boolean bodyDetected;
-float kx, ky = 0;
-float pkx, pky;
+float hx, hy = 0;
+float phx, phy;
 
 
 public void settings() {
@@ -157,8 +155,8 @@ public void setup() {
 
   frameRate(1000);
 
-  pkx = width / 2;
-  pky = height / 2;
+  phx = width / 2;
+  phy = height / 2;
   
   kinect = new KinectPV2(this);
   kinect.enableSkeletonDepthMap(true);
@@ -189,19 +187,24 @@ public void addImpulse() {
 
   // apply impulse with kinect hands instead of mouse press
         // TO-DO: how do i apply impulse from more than one xy coordinate?? i need the right AND left hands (aaand should include support for >1 skeleton)
-  skeletonArray =  kinect.getSkeletonDepthMap();
+  skeletonArray = kinect.getSkeletonDepthMap();
   bodyDetected = skeletonArray.size() > 0;
-  if (bodyDetected) {                              //for (int i = 0; i < skeletonArray.size(); i++) {
+  if (bodyDetected) {                                           //for (int i = 0; i < skeletonArray.size(); i++) {
     KSkeleton skeleton = (KSkeleton) skeletonArray.get(0);
-    if (skeleton.isTracked()) {                                //if (mousePressed) {
+    if (skeleton.isTracked()) {                                 //if (mousePressed) {
       // get impulse center
       KJoint[] joints = skeleton.getJoints();
-      kx = joints[KinectPV2.JointType_HandRight].getX();        //float mx = mouseX;
-      ky = joints[KinectPV2.JointType_HandRight].getY();        //float my = mouseY;
+      KJoint hand = joints[KinectPV2.JointType_HandRight];
+      hx = hand.getX();                                         //float mx = mouseX;
+      hy = hand.getY();                                         //float my = mouseY;
+      
+      // scale to full window (depth map is 512x424)
+      hx = map(hx, 0, 512, 0, width);
+      hy = map(hy, 0, 424, 0, height);
   
       // calculate impulse velocity
-      vx = (kx - pkx) * +impulse_mul;                           //vx = (mouseX - pmouseX) * +impulse_mul;
-      vy = (ky - pky) * -impulse_mul;  // flip vertically       //vy = (mouseY - pmouseY) * -impulse_mul;
+      vx = (hx - phx) * +impulse_mul;                           //vx = (mouseX - pmouseX) * +impulse_mul;
+      vy = (hy - phy) * -impulse_mul;  // flip vertically       //vy = (mouseY - pmouseY) * -impulse_mul;
       
       // clamp velocity
       float vv_sq = vx*vx + vy*vy;
@@ -218,14 +221,14 @@ public void addImpulse() {
       // finally... draw impulse 
       if (vv_sq != 0) {
         pg_impulse.fill(mid+vx, mid+vy, 0);
-        pg_impulse.ellipse(kx, ky, 300, 300);                         //pg_impulse.ellipse(mx, my, 300, 300);
+        pg_impulse.ellipse(hx, hy, 300, 300);                         //pg_impulse.ellipse(mx, my, 300, 300);
       }
       
       // save kinect hand position for next velocity calc
-      pkx = kx;
-      pky = ky;
+      phx = hx;
+      phy = hy;
       
-    }    // end of if(mousepressed)
+    }  // end of if(mousepressed)
   }
   
   pg_impulse.endDraw();
@@ -297,7 +300,7 @@ public void draw() {
       pg_canvas.stroke(255, 100);
       pg_canvas.strokeWeight(8);
       pg_canvas.noFill();
-      pg_canvas.ellipse(kx, ky, 70, 70);
+      pg_canvas.ellipse(hx, hy, 70, 70);
     }
   }
   pg_canvas.endDraw();
