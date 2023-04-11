@@ -52,10 +52,17 @@
  [ ] idle state: turbulent waves? come up with some kind of motion to draw people in
  
  [ ] sprite swap?
- [ ] any background visuals?
-  
+ [ ] background treatment?
+     *how do i get the background to have a soft blurry fill where particles just passed??
+        translucent backgrounds didn't work the first time i tried - probably bc of the way we're creating/applying the PGraphics
+        (+ it would look like hard lines anyway, which isn't the look i'm going for)
+       
+       would i be proccessing previous frames with a gaussian blur pass of some sort?
+         (how slow is that?)
+       
+       if anything maybe just throw a video of the effect you want back there??? (i hate this idea)
  */
-
+  
 import java.util.Locale;
 
 import com.thomasdiewald.pixelflow.java.DwPixelFlow;
@@ -89,11 +96,28 @@ DwFlowField ff_impulse;
 float gravity = 1;
 
 KinectPV2 kinect;
-ArrayList<KSkeleton> skeletonArray;
 boolean bodyDetected;
-float hx, hy = 0;
-float phx, phy;
+ArrayList<KSkeleton> skeletonArray;
 
+float hx, hy = 0;    // might get rid of this soon, make a for loop with temps
+float phx, phy;  // reimplementing, delete soon
+
+class Hand {
+  
+}
+
+/*
+class KHand extends KJoint {
+  KHand() {
+    //
+    //super();
+  }
+}
+*/
+
+//class KHand {
+  
+//}
 
 public void settings() {
   viewport_w = (int) min(viewport_w, displayWidth  * 0.9f);
@@ -186,21 +210,89 @@ public void addImpulse() {
   pg_impulse.rectMode(CENTER);
 
   // apply impulse with kinect hands instead of mouse press
-        // TO-DO: how do i apply impulse from more than one xy coordinate?? i need the right AND left hands (aaand should include support for >1 skeleton)
   skeletonArray = kinect.getSkeletonDepthMap();
-  bodyDetected = skeletonArray.size() > 0;
-  if (bodyDetected) {                                           //for (int i = 0; i < skeletonArray.size(); i++) {
+  //for (int i = 0; i < skeletonArray.size(); i++) {
     KSkeleton skeleton = (KSkeleton) skeletonArray.get(0);
     if (skeleton.isTracked()) {                                 //if (mousePressed) {
       // get impulse center
       KJoint[] joints = skeleton.getJoints();
-      KJoint hand = joints[KinectPV2.JointType_HandRight];
+    //
+      KJoint leftHand = joints[KinectPV2.JointType_HandLeft];
+      KJoint rightHand = joints[KinectPV2.JointType_HandRight];
       hx = hand.getX();                                         //float mx = mouseX;
       hy = hand.getY();                                         //float my = mouseY;
       
       // scale to full window (depth map is 512x424)
       hx = map(hx, 0, 512, 0, width);
       hy = map(hy, 0, 424, 0, height);
+    //
+      
+      /*
+        problem solving in here:
+        
+        i need to store current AND past positions of hands for **6 people**
+        2 hands per person
+        each hand needs:
+          (reference to the kinect joint)
+          X (scaled)
+          Y (scaled)
+          prev X
+          prev Y
+        
+        
+        would you rather have LeftHand[6] and RightHand[6]? no, right? yeah i thought so
+        so we're gonna do Person[6]
+        each person will have a Hand[2] 
+                and each hand will have hand.scaledX, hand.scaledY, hand.prevX, hand.prevY
+        have the constructor calculate + assign these right away       
+        
+        
+        
+        example:
+      
+  // apply impulse with kinect hands instead of mouse press
+  skeletonArray = kinect.getSkeletonDepthMap();
+  bodyDetected = skeletonArray.size() > 0;
+  if (bodyDetected) {                                           //for (int i = 0; i < skeletonArray.size(); i++) {
+    KSkeleton skeleton = (KSkeleton) skeletonArray.get(0);
+    if (skeleton.isTracked()) { 
+      // get impulse center
+      KJoint[] joints = skeleton.getJoints();
+      KJoint leftHand = joints[KinectPV2.JointType_HandLeft];
+      KJoint rightHand = joints[KinectPV2.JointType_HandRight];
+      hx = hand.getX();                                         //float mx = mouseX;
+      hy = hand.getY();                                         //float my = mouseY;
+        
+        becomes
+  
+  // apply impulse with kinect hands instead of mouse press
+  skeletonArray = kinect.getSkeletonDepthMap();
+  for (int i = 0; i < skeletonArray.size(); i++) {
+    KSkeleton skeleton = (KSkeleton) skeletonArray.get(i);
+    if (skeleton.isTracked()) { 
+      // get impulse center
+      KJoint[] joints = skeleton.getJoints();
+      Hand[] hands = {new Hand(joints[KinectPV2.JointType_HandLeft]), new Hand(joints[KinectPV2.JointType_HandRight])};
+        // ^ save this temp to the big 6 array at the end? no right?
+        // yeah no this should be the person[i].hands from the start
+      
+      
+      
+      (bodyDetected was a mistake on my part btw it doesn't work like that)
+      
+      
+      constructor:
+      Hand leftHand = new Hand(joints[KinectPV2.JointType_HandLeft]);
+      
+      ...
+      Hand(KJoint joint) {
+        scaledX = map(joint.getX(), 0, 512, 0, width);
+        scaledY = map(joint.getY(), 0, 424, 0, height);
+        prevX = 0;
+        prevY = 0;
+      }
+      */
+      
   
       // calculate impulse velocity
       vx = (hx - phx) * +impulse_mul;                           //vx = (mouseX - pmouseX) * +impulse_mul;
