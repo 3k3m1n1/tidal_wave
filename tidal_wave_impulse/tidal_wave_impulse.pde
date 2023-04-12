@@ -31,25 +31,25 @@
  [...] how many particles should we start with?
  
  [*] import kinect library
- [*] make left & right hands apply impulse instead of mouseX/Y
-   [ ] ...maybe only when your palms are open?? (3 states: open, closed, lasso)
+ [*] make hand apply impulse instead of mouseX/Y
+   [...] okay now do two hands (left and right)
+   [ ] ...maybe only apply when your palms are open? (3 states: open, closed, lasso)
  [*] map skeleton depth coordinates from 512x424 to full window
  [...] what should we do if multiple people are detected?
-       only use the closest skeleton? specify a cut-off point (to enforce in person)?
-       ^^^let's see if joint.getZ() returns a real value, otherwise we'll have to check the depth img
- 
- [ ] oooh the glitched particles unintentionally made that ocean-filtering-through-sand effect.
- spawn some slow-moving dot obstacles on purpose?
- 
+       *specify a cut-off point, use the chalk circle to bring people within that range
+                   ^^^let's see if joint.getZ() returns a real value, otherwise we'll have to check the depth img
+ [ ] subtle/elegant hand indicators?
+       not just for debugging, but to give feedback to participants (whether they're tech-savvy or not)
+       
  [ ] ??interactive sound??
  (start off realistic, then remix / abstract it - samplefocus is your friend)
  
  
  EXTRAS:
- [ ] subtle/elegant ideas for hand indicators?
-       not just for debugging, but to give feedback to users (tech-savvy or not)
+ [ ] idle state: turbulent waves?? come up with some kind of motion to draw people in
  
- [ ] idle state: turbulent waves? come up with some kind of motion to draw people in
+ [ ] oooh the glitched particles made that ocean-filtering-through-sand effect...
+       spawn some invisible dot obstacles on purpose?
  
  [ ] sprite swap?
  [ ] background treatment?
@@ -61,6 +61,9 @@
          (how slow is that?)
        
        if anything maybe just throw a video of the effect you want back there??? (i hate this idea)
+ 
+ [ ] i really loved the attractor effect - maybe there's a *cough* avatar effect where for a brief period of time (random or manually triggered) your control switches from impulses to attractors
+ (less like pushing waves to shore, more like guiding a water whip
  */
   
 import java.util.Locale;
@@ -96,28 +99,35 @@ DwFlowField ff_impulse;
 float gravity = 1;
 
 KinectPV2 kinect;
-boolean bodyDetected;
 ArrayList<KSkeleton> skeletonArray;
+Person[] waterbenders;
 
-float hx, hy = 0;    // might get rid of this soon, make a for loop with temps
-float phx, phy;  // reimplementing, delete soon
 
 class Hand {
+  float scaledX, scaledY;
+  float prevX, prevY;
   
-}
-
-/*
-class KHand extends KJoint {
-  KHand() {
-    //
-    //super();
+  Hand(KJoint joint) {
+    // scale to full window (depth map is 512x424)
+    scaledX = map(joint.getX(), 0, 512, 0, width);
+    scaledY = map(joint.getY(), 0, 424, 0, height);
+    
+    // save previous x+y for calculating velocity
+    prevX = width / 2;
+    prevY = height / 2;
+    
+    // could add a handState var (int) with joint.getState() but we're chilling for now
   }
 }
-*/
 
-//class KHand {
+class Person {
+  Hand[] hands;
   
-//}
+  Person() {
+    hands = new Hand[2];
+  }
+}
+
 
 public void settings() {
   viewport_w = (int) min(viewport_w, displayWidth  * 0.9f);
@@ -178,14 +188,13 @@ public void setup() {
   pg_gravity.smooth(0);
 
   frameRate(1000);
-
-  phx = width / 2;
-  phy = height / 2;
   
   kinect = new KinectPV2(this);
   kinect.enableSkeletonDepthMap(true);
 
   kinect.init();
+  
+  waterbenders = new Person[kinect.getSkeletonDepthMap().size()];  // pretty sure this is 6, but just in case
 }
 
 
@@ -211,21 +220,13 @@ public void addImpulse() {
 
   // apply impulse with kinect hands instead of mouse press
   skeletonArray = kinect.getSkeletonDepthMap();
-  //for (int i = 0; i < skeletonArray.size(); i++) {
-    KSkeleton skeleton = (KSkeleton) skeletonArray.get(0);
+  for (int i = 0; i < skeletonArray.size(); i++) {
+    KSkeleton skeleton = (KSkeleton) skeletonArray.get(i);
     if (skeleton.isTracked()) {                                 //if (mousePressed) {
       // get impulse center
       KJoint[] joints = skeleton.getJoints();
-    //
-      KJoint leftHand = joints[KinectPV2.JointType_HandLeft];
-      KJoint rightHand = joints[KinectPV2.JointType_HandRight];
-      hx = hand.getX();                                         //float mx = mouseX;
-      hy = hand.getY();                                         //float my = mouseY;
-      
-      // scale to full window (depth map is 512x424)
-      hx = map(hx, 0, 512, 0, width);
-      hy = map(hy, 0, 424, 0, height);
-    //
+      waterbenders[i].hands[0] = new Hand(joints[KinectPV2.JointType_HandLeft]);
+      waterbenders[i].hands[1] = new Hand(joints[KinectPV2.JointType_HandRight]);
       
       /*
         problem solving in here:
@@ -233,7 +234,7 @@ public void addImpulse() {
         i need to store current AND past positions of hands for **6 people**
         2 hands per person
         each hand needs:
-          (reference to the kinect joint)
+          (reference to the kinect joint?)
           X (scaled)
           Y (scaled)
           prev X
@@ -275,6 +276,13 @@ public void addImpulse() {
       Hand[] hands = {new Hand(joints[KinectPV2.JointType_HandLeft]), new Hand(joints[KinectPV2.JointType_HandRight])};
         // ^ save this temp to the big 6 array at the end? no right?
         // yeah no this should be the person[i].hands from the start
+        
+        // also if that definition doesn't work feel free to assign hands[0] and hands[1] on separate lines
+      ...  
+      for (hand in person[i].hands) {
+        ...velocity stuff
+        use scaledX + Y instead of hx and hy
+      }
       
       
       
@@ -290,39 +298,41 @@ public void addImpulse() {
         scaledY = map(joint.getY(), 0, 424, 0, height);
         prevX = 0;
         prevY = 0;
+        // ccould add state var (int)
       }
+      
       */
       
-  
-      // calculate impulse velocity
-      vx = (hx - phx) * +impulse_mul;                           //vx = (mouseX - pmouseX) * +impulse_mul;
-      vy = (hy - phy) * -impulse_mul;  // flip vertically       //vy = (mouseY - pmouseY) * -impulse_mul;
-      
-      // clamp velocity
-      float vv_sq = vx*vx + vy*vy;
-      float vv_sq_max = impulse_max*impulse_max;
-      if (vv_sq > vv_sq_max) {
-        vx = impulse_max * vx / sqrt(vv_sq);
-        vy = impulse_max * vy / sqrt(vv_sq);
-      }
-      
-      // map velocity, to UNSIGNED_BYTE range
-      vx = 127 * vx / impulse_max;
-      vy = 127 * vy / impulse_max;
-      
-      // finally... draw impulse 
-      if (vv_sq != 0) {
-        pg_impulse.fill(mid+vx, mid+vy, 0);
-        pg_impulse.ellipse(hx, hy, 300, 300);                         //pg_impulse.ellipse(mx, my, 300, 300);
-      }
-      
-      // save kinect hand position for next velocity calc
-      phx = hx;
-      phy = hy;
-      
+      for (Hand hand : waterbenders[i].hands) {    
+        // calculate impulse velocity
+        vx = (hand.scaledX - hand.prevX) * +impulse_mul;                           //vx = (mouseX - pmouseX) * +impulse_mul;
+        vy = (hand.scaledY - hand.prevY) * -impulse_mul;  // flip vertically       //vy = (mouseY - pmouseY) * -impulse_mul;
+        
+        // clamp velocity
+        float vv_sq = vx*vx + vy*vy;
+        float vv_sq_max = impulse_max*impulse_max;
+        if (vv_sq > vv_sq_max) {
+          vx = impulse_max * vx / sqrt(vv_sq);
+          vy = impulse_max * vy / sqrt(vv_sq);
+        }
+        
+        // map velocity, to UNSIGNED_BYTE range
+        vx = 127 * vx / impulse_max;
+        vy = 127 * vy / impulse_max;
+        
+        // finally... draw impulse 
+        if (vv_sq != 0) {
+          pg_impulse.fill(mid+vx, mid+vy, 0);
+          pg_impulse.ellipse(hand.scaledX, hand.scaledY, 300, 300);                         //pg_impulse.ellipse(mx, my, 300, 300);
+        }
+        
+        // save kinect hand position for next velocity calc
+        hand.prevX = hand.scaledX;
+        hand.prevY = hand.scaledY;
+        
+      }  // end of hands for loop
     }  // end of if(mousepressed)
-  }
-  
+  }  // end of skeletons for loop
   pg_impulse.endDraw();
 
   // create impulse texture
@@ -385,15 +395,18 @@ public void draw() {
   pg_canvas.beginDraw();
   pg_canvas.background(0);
   pg_canvas.image(pg_obstacles, 0, 0);
-  // debug kinect hands visual
-  if (bodyDetected) {
-    KSkeleton skeleton = (KSkeleton) skeletonArray.get(0);
-    if (skeleton.isTracked() ) {    
-      pg_canvas.stroke(255, 100);
-      pg_canvas.strokeWeight(8);
-      pg_canvas.noFill();
-      pg_canvas.ellipse(hx, hy, 70, 70);
-    }
+  // + hand indicators
+  for (int i = 0; i < waterbenders.length; i++) {
+  //for (int i = 0; i < skeletonArray.size(); i++) {
+    //KSkeleton skeleton = (KSkeleton) skeletonArray.get(i);
+    //if (skeleton.isTracked()) {
+      for (Hand hand : waterbenders[i].hands) {   
+        pg_canvas.stroke(255, 100);
+        pg_canvas.strokeWeight(8);
+        pg_canvas.noFill();
+        pg_canvas.ellipse(hand.scaledX, hand.scaledY, 70, 70);
+      }
+    //}
   }
   pg_canvas.endDraw();
   particles.displayParticles(pg_canvas);
