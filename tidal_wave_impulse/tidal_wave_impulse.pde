@@ -32,12 +32,13 @@
  
  [*] import kinect library
  [*] make hand apply impulse instead of mouseX/Y
-   [...] okay now do two hands (left and right)
-   [ ] ...maybe only apply when your palms are open? (3 states: open, closed, lasso)
+   [*] okay now do two hands (left and right)
+   [ ] maybe only apply it if your palms are open? (3 states: open, closed, lasso)
  [*] map skeleton depth coordinates from 512x424 to full window
  [...] what should we do if multiple people are detected?
        *specify a cut-off point, use the chalk circle to bring people within that range
                    ^^^let's see if joint.getZ() returns a real value, otherwise we'll have to check the depth img
+ 
  [ ] subtle/elegant hand indicators?
        not just for debugging, but to give feedback to participants (whether they're tech-savvy or not)
        
@@ -64,6 +65,7 @@
  
  [ ] i really loved the attractor effect - maybe there's a *cough* avatar effect where for a brief period of time (random or manually triggered) your control switches from impulses to attractors
  (less like pushing waves to shore, more like guiding a water whip
+ 
  */
   
 import java.util.Locale;
@@ -107,26 +109,12 @@ class Hand {
   float scaledX, scaledY;
   float prevX, prevY;
   
-  /*
-  Hand(KJoint joint) {
-    // scale to full window (depth map is 512x424)
-    scaledX = map(joint.getX(), 0, 512, 0, width);
-    scaledY = map(joint.getY(), 0, 424, 0, height);
-    
-    // save previous x+y for calculating velocity
-    prevX = width / 2;
-    prevY = height / 2;  
-  }
-  */
-  
   Hand() {
     scaledX = 0;
     scaledY = 0;
     
     prevX = width / 2;
     prevY = height / 2;
-    
-    // could add a handState var (int) with joint.getState() but we're chilling for now
   }
   
   void updatePos(KJoint joint) {
@@ -214,7 +202,6 @@ public void setup() {
   kinect.init();
   
   waterbenders = new Person[6];
-  // ah - you made an array that can *hold* 6 people, but never actually *instantiated* those people
   for (int i = 0; i < waterbenders.length; i++) {
     waterbenders[i] = new Person();
   }
@@ -248,85 +235,8 @@ public void addImpulse() {
     if (skeleton.isTracked()) {                                 //if (mousePressed) {
       // get impulse center
       KJoint[] joints = skeleton.getJoints();
-      //waterbenders[i].hands[0] = new Hand( joints[KinectPV2.JointType_HandLeft] );
-      //waterbenders[i].hands[1] = new Hand( joints[KinectPV2.JointType_HandRight] );
       waterbenders[i].hands[0].updatePos( joints[KinectPV2.JointType_HandLeft] );
       waterbenders[i].hands[1].updatePos( joints[KinectPV2.JointType_HandRight] );
-      
-      /*
-        problem solving in here:
-        
-        i need to store current AND past positions of hands for **6 people**
-        2 hands per person
-        each hand needs:
-          (reference to the kinect joint?)
-          X (scaled)
-          Y (scaled)
-          prev X
-          prev Y
-        
-        
-        would you rather have LeftHand[6] and RightHand[6]? no, right? yeah i thought so
-        so we're gonna do Person[6]
-        each person will have a Hand[2] 
-                and each hand will have hand.scaledX, hand.scaledY, hand.prevX, hand.prevY
-        have the constructor calculate + assign these right away       
-        
-        
-        
-        example:
-      
-  // apply impulse with kinect hands instead of mouse press
-  skeletonArray = kinect.getSkeletonDepthMap();
-  bodyDetected = skeletonArray.size() > 0;
-  if (bodyDetected) {                                           //for (int i = 0; i < skeletonArray.size(); i++) {
-    KSkeleton skeleton = (KSkeleton) skeletonArray.get(0);
-    if (skeleton.isTracked()) { 
-      // get impulse center
-      KJoint[] joints = skeleton.getJoints();
-      KJoint leftHand = joints[KinectPV2.JointType_HandLeft];
-      KJoint rightHand = joints[KinectPV2.JointType_HandRight];
-      hx = hand.getX();                                         //float mx = mouseX;
-      hy = hand.getY();                                         //float my = mouseY;
-        
-        becomes
-  
-  // apply impulse with kinect hands instead of mouse press
-  skeletonArray = kinect.getSkeletonDepthMap();
-  for (int i = 0; i < skeletonArray.size(); i++) {
-    KSkeleton skeleton = (KSkeleton) skeletonArray.get(i);
-    if (skeleton.isTracked()) { 
-      // get impulse center
-      KJoint[] joints = skeleton.getJoints();
-      Hand[] hands = {new Hand(joints[KinectPV2.JointType_HandLeft]), new Hand(joints[KinectPV2.JointType_HandRight])};
-        // ^ save this temp to the big 6 array at the end? no right?
-        // yeah no this should be the person[i].hands from the start
-        
-        // also if that definition doesn't work feel free to assign hands[0] and hands[1] on separate lines
-      ...  
-      for (hand in person[i].hands) {
-        ...velocity stuff
-        use scaledX + Y instead of hx and hy
-      }
-      
-      
-      
-      (bodyDetected was a mistake on my part btw it doesn't work like that)
-      
-      
-      constructor:
-      Hand leftHand = new Hand(joints[KinectPV2.JointType_HandLeft]);
-      
-      ...
-      Hand(KJoint joint) {
-        scaledX = map(joint.getX(), 0, 512, 0, width);
-        scaledY = map(joint.getY(), 0, 424, 0, height);
-        prevX = 0;
-        prevY = 0;
-        // ccould add state var (int)
-      }
-      
-      */
       
       for (Hand hand : waterbenders[i].hands) {     //<>//
         // calculate impulse velocity
@@ -368,14 +278,6 @@ public void addImpulse() {
     DwFilter.get(context).merge.apply(ff_impulse.tex_vel, ta, tb);
     ff_impulse.blur(1, impulse_blur);
   }
-
-  // create acceleration texture
-  //ff_acc.resize(w, h);
-  //{
-  //  Merge.TexMad ta = new Merge.TexMad(ff_impulse.tex_vel, 1, 0);
-  //  DwFilter.get(context).merge.apply(ff_acc.tex_vel, ta);
-  //}
-  ///////
 }
 
 public void addGravity() {
@@ -514,33 +416,5 @@ public void spawnParticles() {
     sr.pos(px, vh-1-py);
     sr.vel(vx, vy);
     particles.spawn(vw, vh, sr);
-  }
-}
-
-
-void drawHandState(KJoint joint) {
-  noStroke();
-  handState(joint.getState());
-  pushMatrix();
-  translate(joint.getX(), joint.getY(), joint.getZ());
-  ellipse(0, 0, 70, 70);
-  popMatrix();
-}
-
-
-void handState(int handState) {
-  switch(handState) {
-  case KinectPV2.HandState_Open:
-    fill(0, 255, 0);
-    break;
-  case KinectPV2.HandState_Closed:
-    fill(255, 0, 0);
-    break;
-  case KinectPV2.HandState_Lasso:
-    fill(0, 0, 255);
-    break;
-  case KinectPV2.HandState_NotTracked:
-    fill(255, 255, 255);
-    break;
   }
 }
