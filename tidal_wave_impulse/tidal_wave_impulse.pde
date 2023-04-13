@@ -107,6 +107,7 @@ class Hand {
   float scaledX, scaledY;
   float prevX, prevY;
   
+  /*
   Hand(KJoint joint) {
     // scale to full window (depth map is 512x424)
     scaledX = map(joint.getX(), 0, 512, 0, width);
@@ -114,9 +115,24 @@ class Hand {
     
     // save previous x+y for calculating velocity
     prevX = width / 2;
+    prevY = height / 2;  
+  }
+  */
+  
+  Hand() {
+    scaledX = 0;
+    scaledY = 0;
+    
+    prevX = width / 2;
     prevY = height / 2;
     
     // could add a handState var (int) with joint.getState() but we're chilling for now
+  }
+  
+  void updatePos(KJoint joint) {
+    // scale to full window (depth map is 512x424)
+    scaledX = map(joint.getX(), 0, 512, 0, width);
+    scaledY = map(joint.getY(), 0, 424, 0, height);
   }
 }
 
@@ -125,6 +141,9 @@ class Person {
   
   Person() {
     hands = new Hand[2];
+    for (int i = 0; i < hands.length; i++) {
+      hands[i] = new Hand();
+    }
   }
 }
 
@@ -194,7 +213,11 @@ public void setup() {
 
   kinect.init();
   
-  waterbenders = new Person[kinect.getSkeletonDepthMap().size()];  // pretty sure this is 6, but just in case
+  waterbenders = new Person[6];
+  // ah - you made an array that can *hold* 6 people, but never actually *instantiated* those people
+  for (int i = 0; i < waterbenders.length; i++) {
+    waterbenders[i] = new Person();
+  }
 }
 
 
@@ -225,8 +248,10 @@ public void addImpulse() {
     if (skeleton.isTracked()) {                                 //if (mousePressed) {
       // get impulse center
       KJoint[] joints = skeleton.getJoints();
-      waterbenders[i].hands[0] = new Hand(joints[KinectPV2.JointType_HandLeft]);
-      waterbenders[i].hands[1] = new Hand(joints[KinectPV2.JointType_HandRight]);
+      //waterbenders[i].hands[0] = new Hand( joints[KinectPV2.JointType_HandLeft] );
+      //waterbenders[i].hands[1] = new Hand( joints[KinectPV2.JointType_HandRight] );
+      waterbenders[i].hands[0].updatePos( joints[KinectPV2.JointType_HandLeft] );
+      waterbenders[i].hands[1].updatePos( joints[KinectPV2.JointType_HandRight] );
       
       /*
         problem solving in here:
@@ -303,10 +328,10 @@ public void addImpulse() {
       
       */
       
-      for (Hand hand : waterbenders[i].hands) {    
+      for (Hand hand : waterbenders[i].hands) {     //<>//
         // calculate impulse velocity
-        vx = (hand.scaledX - hand.prevX) * +impulse_mul;                           //vx = (mouseX - pmouseX) * +impulse_mul;
-        vy = (hand.scaledY - hand.prevY) * -impulse_mul;  // flip vertically       //vy = (mouseY - pmouseY) * -impulse_mul;
+        vx = (hand.scaledX - hand.prevX) * +impulse_mul;                           //vx = (mouseX - pmouseX) * +impulse_mul; //<>//
+        vy = (hand.scaledY - hand.prevY) * -impulse_mul;  // flip vertically       //vy = (mouseY - pmouseY) * -impulse_mul; //<>//
         
         // clamp velocity
         float vv_sq = vx*vx + vy*vy;
@@ -327,8 +352,8 @@ public void addImpulse() {
         }
         
         // save kinect hand position for next velocity calc
-        hand.prevX = hand.scaledX;
-        hand.prevY = hand.scaledY;
+        hand.prevX = hand.scaledX; //<>//
+        hand.prevY = hand.scaledY; //<>//
         
       }  // end of hands for loop
     }  // end of if(mousepressed)
