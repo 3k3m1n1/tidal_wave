@@ -27,28 +27,27 @@
  [*] change particle colors to ocean blues
  [*] add gravity
  [*] explore particle shaders + blend modes
- [ ] play with bloom
- [...] how many particles should we start with?
+ [*] play with bloom
+ [ ] how many particles should we start with?
  
  [*] import kinect library
  [*] make hand apply impulse instead of mouseX/Y
    [*] okay now do two hands (left and right)
-   [ ] maybe only apply it if your palms are open? (3 states: open, closed, lasso)
  [*] map skeleton depth coordinates from 512x424 to full window
- [...] what should we do if multiple people are detected?
-       *specify a cut-off point, use the chalk circle to bring people within that range
-                   ^^^let's see if joint.getZ() returns a real value, otherwise we'll have to check the depth img
- 
- [ ] subtle/elegant hand indicators?
-       not just for debugging, but to give feedback to participants (whether they're tech-savvy or not)
-       
+ [*] add support for multiple skeletons (in case people step into the circle with their kids)
+ [ ] should i specify a cut-off depth so that the audience isn't tracked?
+
+ [ ] idle state: turbulent waves? come up with some kind of motion to draw people in 
+
  [ ] ??interactive sound??
  (start off realistic, then remix / abstract it - samplefocus is your friend)
- 
+
+ [ ] subtle/elegant hand indicators?
+       not just for debugging, but to give feedback to participants (whether they're tech-savvy or not)
+
  
  EXTRAS:
- [ ] idle state: turbulent waves?? come up with some kind of motion to draw people in
- 
+
  [ ] oooh the glitched particles made that ocean-filtering-through-sand effect...
        spawn some invisible dot obstacles on purpose?
  
@@ -64,7 +63,7 @@
        if anything maybe just throw a video of the effect you want back there??? (i hate this idea)
  
  [ ] i really loved the attractor effect - maybe there's a *cough* avatar effect where for a brief period of time (random or manually triggered) your control switches from impulses to attractors
- (less like pushing waves to shore, more like guiding a water whip
+ (less like pushing waves to shore, more like guiding a water whip)
  
  */
   
@@ -91,12 +90,14 @@ PGraphics2D pg_canvas;
 PGraphics2D pg_obstacles;
 PGraphics2D pg_impulse;
 PGraphics2D pg_gravity;
+PGraphics2D pg_luminance;
 
 DwPixelFlow context;
 
 DwFlowFieldParticles particles;
 DwFlowField ff_acc;
 DwFlowField ff_impulse;
+DwFilter filter;
 
 float gravity = 1;
 
@@ -150,6 +151,8 @@ public void setup() {
   context = new DwPixelFlow(this);
   context.print();
   context.printGL();
+  
+  filter = DwFilter.get(context);
 
   particles = new DwFlowFieldParticles(context, 1024 * 1024);
 
@@ -194,6 +197,11 @@ public void setup() {
 
   pg_gravity = (PGraphics2D) createGraphics(width, height, P2D);
   pg_gravity.smooth(0);
+  
+  // do i need this?
+  pg_luminance = (PGraphics2D) createGraphics(width, height, P2D);
+  pg_luminance.smooth(0);
+  // i think i did - no more null pointers
 
   frameRate(1000);
   
@@ -267,8 +275,31 @@ public void addImpulse() {
         hand.prevY = hand.scaledY; //<>//
         
       }  // end of hands for loop
-    }  // end of if(skeleton.isTracked()) / if(mousepressed)
+    }  // end of if(skeleton.isTracked())
   }  // end of skeletons for loop
+  
+  // fallback:
+  if (mousePressed) {
+    // impulse center/velocity
+    float mx = mouseX;
+    float my = mouseY;
+    vx = (mouseX - pmouseX) * +impulse_mul;
+    vy = (mouseY - pmouseY) * -impulse_mul; // flip vertically
+    // clamp velocity
+    float vv_sq = vx*vx + vy*vy;
+    float vv_sq_max = impulse_max*impulse_max;
+    if (vv_sq > vv_sq_max) {
+      vx = impulse_max * vx / sqrt(vv_sq);
+      vy = impulse_max * vy / sqrt(vv_sq);
+    }
+    // map velocity, to UNSIGNED_BYTE range
+    vx = 127 * vx / impulse_max;
+    vy = 127 * vy / impulse_max;
+    if (vv_sq != 0) {
+      pg_impulse.fill(mid+vx, mid+vy, 0);
+      pg_impulse.ellipse(mx, my, 300, 300);  //pg_impulse.ellipse(mx, my, 100, 100);
+    }
+  }
   pg_impulse.endDraw();
 
   // create impulse texture
@@ -340,6 +371,8 @@ public void draw() {
   */
   pg_canvas.endDraw();
   particles.displayParticles(pg_canvas);
+  
+  addBloom();
 
   blendMode(REPLACE);
   image(pg_canvas, 0, 0);
@@ -420,4 +453,18 @@ public void spawnParticles() {
     sr.vel(vx, vy);
     particles.spawn(vw, vh, sr);
   }
+}
+
+public void addBloom() {
+  
+  filter.luminance_threshold.param.threshold = 0.28f; // when 0, all colors are used
+  filter.luminance_threshold.param.exponent  = 5;
+  filter.luminance_threshold.apply(pg_canvas, pg_luminance);
+      
+  filter.bloom.setBlurLayers(10);
+  //filter.bloom.gaussianpyramid.setBlurLayers(10);
+  filter.bloom.param.blur_radius = 1;
+  filter.bloom.param.mult   = 0.7f;    //map(mouseX, 0, width, 0, 10);
+  filter.bloom.param.radius = 0.1f;//map(mouseY, 0, height, 0, 1);
+  filter.bloom.apply(pg_luminance, null, pg_canvas);
 }
