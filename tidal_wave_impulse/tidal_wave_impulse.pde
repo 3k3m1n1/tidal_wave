@@ -82,9 +82,9 @@ import processing.opengl.PGraphics2D;
 import KinectPV2.*;
 
 
-int viewport_w = 1280;
-int viewport_h = 720;
-int viewport_x = 230;
+int viewport_w = 1920;  //1280
+int viewport_h = 1080;  //720
+int viewport_x = 0;  //230
 int viewport_y = 0;
 
 PGraphics2D pg_canvas;
@@ -137,9 +137,10 @@ class Person {
 
 
 public void settings() {
-  viewport_w = (int) min(viewport_w, displayWidth  * 0.9f);
-  viewport_h = (int) min(viewport_h, displayHeight * 0.9f);
-  size(viewport_w, viewport_h, P2D);
+  //viewport_w = (int) min(viewport_w, displayWidth  * 0.9f);
+  //viewport_h = (int) min(viewport_h, displayHeight * 0.9f);
+  //size(viewport_w, viewport_h, P2D);
+  fullScreen(P2D, 1);
   smooth(0);
 }
 
@@ -159,16 +160,16 @@ public void setup() {
   particles.param.velocity_damping  = .997f;  // originally 0.995f, keep this high for responsiveness but never 1
   particles.param.steps = 1;
 
-  particles.param.size_display = 8;
-  particles.param.size_collision = 6;  // keep slightly smaller than display for overlap
-  particles.param.size_cohesion  = 30;
+  particles.param.size_display = 10;
+  particles.param.size_collision = 9;  // keep slightly smaller than display for overlap
+  particles.param.size_cohesion  = 40;
 
   particles.param.mul_col = 1f;  // collision *multiplier*
   particles.param.mul_coh = .22f;  // cohesion, originally 1.00f (too much resistance)
   particles.param.mul_obs = 3f;  // obstacles
   
   particles.param.shader_type = 1;  // particles glow bright upon collision + fade to black as they lose velocity! just like bioluminescent plankton!!!
-  particles.param.shader_collision_mult = 0.42;    // keep this in the mids for really pretty contrast + the element of surprise :) originally 0.2f
+  particles.param.shader_collision_mult = 0.22;    // keep this mid to low for pretty contrast + the element of surprise :)
   
   //particles.param.blend_mode = 1;  // blend mode: add -> almost a winner, but the brightness is just so blown out. if bloom wasn't a thing i'd choose you
                                     // use with particles.param.col_A = new float[]{0.10f, 0.50f, 1.00f, .2f} and particles.param.shader_collision_mult = 0.24
@@ -266,7 +267,7 @@ public void addImpulse() {
         hand.prevY = hand.scaledY; //<>//
         
       }  // end of hands for loop
-    }  // end of if(mousepressed)
+    }  // end of if(skeleton.isTracked()) / if(mousepressed)
   }  // end of skeletons for loop
   pg_impulse.endDraw();
 
@@ -323,6 +324,7 @@ public void draw() {
   pg_canvas.background(0);
   pg_canvas.image(pg_obstacles, 0, 0);
   // + hand indicators
+  /*
   for (int i = 0; i < waterbenders.length; i++) {
   //for (int i = 0; i < skeletonArray.size(); i++) {
     //KSkeleton skeleton = (KSkeleton) skeletonArray.get(i);
@@ -335,6 +337,7 @@ public void draw() {
       }
     //}
   }
+  */
   pg_canvas.endDraw();
   particles.displayParticles(pg_canvas);
 
