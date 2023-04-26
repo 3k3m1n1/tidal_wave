@@ -35,7 +35,7 @@
    [*] okay now do two hands (left and right)
  [*] map skeleton depth coordinates from 512x424 to full window
  [*] add support for multiple skeletons (in case people step into the circle with their kids)
- [ ] should i specify a cut-off depth so that the audience isn't tracked?
+   [ ] should i specify a cut-off depth so that the audience isn't tracked?
 
  [ ] idle state: turbulent waves? come up with some kind of motion to draw people in 
 
@@ -160,19 +160,19 @@ public void setup() {
   particles.param.col_A = new float[]{0.10f, 0.50f, 1.00f, 1};
   particles.param.col_B = new float[]{0.05f, 0.25f, 0.50f, 0};
 
-  particles.param.velocity_damping  = .997f;  // originally 0.995f, keep this high for responsiveness but never 1
+  particles.param.velocity_damping  = 1f;  // originally 0.995f, keep this high for responsiveness but never 1
   particles.param.steps = 1;
 
   particles.param.size_display = 10;
   particles.param.size_collision = 9;  // keep slightly smaller than display for overlap
-  particles.param.size_cohesion  = 40;
+  particles.param.size_cohesion  = 14;
 
   particles.param.mul_col = 1f;  // collision *multiplier*
-  particles.param.mul_coh = .22f;  // cohesion, originally 1.00f (too much resistance)
+  particles.param.mul_coh = 0.12f;  // cohesion, originally 1.00f (the higher, the more compact. too high and you get bee swarms, too low and you get scattering ball pit)
   particles.param.mul_obs = 3f;  // obstacles
   
   particles.param.shader_type = 1;  // particles glow bright upon collision + fade to black as they lose velocity! just like bioluminescent plankton!!!
-  particles.param.shader_collision_mult = 0.22;    // keep this mid to low for pretty contrast + the element of surprise :)
+  particles.param.shader_collision_mult = 0.17;    // keep this mid to low for pretty contrast + the element of surprise :)
   
   //particles.param.blend_mode = 1;  // blend mode: add -> almost a winner, but the brightness is just so blown out. if bloom wasn't a thing i'd choose you
                                     // use with particles.param.col_A = new float[]{0.10f, 0.50f, 1.00f, .2f} and particles.param.shader_collision_mult = 0.24
@@ -198,22 +198,24 @@ public void setup() {
   pg_gravity = (PGraphics2D) createGraphics(width, height, P2D);
   pg_gravity.smooth(0);
   
-  // do i need this?
   pg_luminance = (PGraphics2D) createGraphics(width, height, P2D);
   pg_luminance.smooth(0);
-  // i think i did - no more null pointers
-
-  frameRate(1000);
+  
   
   kinect = new KinectPV2(this);
   kinect.enableSkeletonDepthMap(true);
-
   kinect.init();
+  
   
   waterbenders = new Person[6];
   for (int i = 0; i < waterbenders.length; i++) {
     waterbenders[i] = new Person();
   }
+  
+  
+  noCursor();
+  frameRate(1000);
+  spawnParticles();
 }
 
 
@@ -339,7 +341,7 @@ public void draw() {
 
   updateScene();
 
-  spawnParticles();
+  //spawnParticles();
 
   addImpulse();
 
@@ -397,9 +399,10 @@ void updateScene() {
 
   // border
   pg_obstacles.fill(0, 255);
-  pg_obstacles.rect(0, 0, w, h);
+  pg_obstacles.rect(0, 0, w, h);        // outer boundary? (adjust this too or else your particles will pour out)
+      // to-do: push boundaries up slightly
   pg_obstacles.fill(0, 0);
-  pg_obstacles.rect(10, 10, w-20, h-20);
+  pg_obstacles.rect(10, 10, w-20, h-20);  // sets the bounding box (can be much smaller as long as contained by above)
 
   // animated obstacles
   //pg_obstacles.rectMode(CENTER);
@@ -424,47 +427,32 @@ public void spawnParticles() {
   vw = width;
   vh = height;
 
-  count = 1;
-  radius = 10;
+  count = 30000;  // adjust as desired
+  radius = 200;
   px = vw/2f;
-  py = vh/4f;
+  py = 3 * vh/4f;
   vx = 0;
-  vy = 0;
+  vy = -500;
 
   DwFlowFieldParticles.SpawnRadial sr = new DwFlowFieldParticles.SpawnRadial();
-  //sr.num(count);
-  //sr.dim(radius, radius);
-  //sr.pos(px, vh-1-py);
-  //sr.vel(vx, vy);
-  //particles.spawn(vw, vh, sr);
+  sr.num(count);
+  sr.dim(radius, radius);
+  sr.pos(px, vh-1-py);
+  sr.vel(vx, vy);
+  particles.spawn(vw, vh, sr);
 
-  if (mousePressed && mouseButton == LEFT) {
-    count = ceil(particles.getCount() * 0.01f);
-    count = min(max(count, 1), 10000);
-    radius = ceil(sqrt(count));
-    px = mouseX;
-    py = mouseY;
-    vx = 0;
-    vy = 0;
-
-    sr.num(count);
-    sr.dim(radius, radius);
-    sr.pos(px, vh-1-py);
-    sr.vel(vx, vy);
-    particles.spawn(vw, vh, sr);
-  }
 }
 
 public void addBloom() {
   
-  filter.luminance_threshold.param.threshold = 0.28f; // when 0, all colors are used
+  filter.luminance_threshold.param.threshold = 0.48f; // when 0, all colors are used
   filter.luminance_threshold.param.exponent  = 5;
   filter.luminance_threshold.apply(pg_canvas, pg_luminance);
       
   filter.bloom.setBlurLayers(10);
-  //filter.bloom.gaussianpyramid.setBlurLayers(10);
+  filter.bloom.gaussianpyramid.setBlurLayers(10);
   filter.bloom.param.blur_radius = 1;
-  filter.bloom.param.mult   = 0.7f;    //map(mouseX, 0, width, 0, 10);
-  filter.bloom.param.radius = 0.1f;//map(mouseY, 0, height, 0, 1);
+  filter.bloom.param.mult   = 0.7f; 
+  filter.bloom.param.radius = 0.3f;
   filter.bloom.apply(pg_luminance, null, pg_canvas);
 }
