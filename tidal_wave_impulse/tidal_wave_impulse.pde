@@ -160,7 +160,7 @@ public void setup() {
   particles.param.col_A = new float[]{0.10f, 0.50f, 1.00f, 1};
   particles.param.col_B = new float[]{0.05f, 0.25f, 0.50f, 0};
 
-  particles.param.velocity_damping  = 1f;  // originally 0.995f, keep this high for responsiveness but never 1
+  particles.param.velocity_damping  = 0.999f;  // originally 0.995f, keep this high for responsiveness but never 1
   particles.param.steps = 1;
 
   particles.param.size_display = 10;
@@ -168,8 +168,8 @@ public void setup() {
   particles.param.size_cohesion  = 14;
 
   particles.param.mul_col = 1f;  // collision *multiplier*
-  particles.param.mul_coh = 0.12f;  // cohesion, originally 1.00f (the higher, the more compact. too high and you get bee swarms, too low and you get scattering ball pit)
-  particles.param.mul_obs = 3f;  // obstacles
+  particles.param.mul_coh = 1.22f;  // cohesion multiplier, originally 1.00f (the higher, the more compact. too high and you get bee swarms, too low and you get scattering ball pit)
+  particles.param.mul_obs = 3f;  // obstacles multiplier
   
   particles.param.shader_type = 1;  // particles glow bright upon collision + fade to black as they lose velocity! just like bioluminescent plankton!!!
   particles.param.shader_collision_mult = 0.17;    // keep this mid to low for pretty contrast + the element of surprise :)
@@ -389,32 +389,19 @@ void updateScene() {
 
   int w = pg_obstacles.width;
   int h = pg_obstacles.height;
-  float dim = 3 * h/4f;
 
   pg_obstacles.beginDraw();
   pg_obstacles.clear();
   pg_obstacles.noStroke();
   pg_obstacles.blendMode(REPLACE);
-  pg_obstacles.rectMode(CORNER);
+  pg_obstacles.rectMode(CORNERS);  // so much easier
 
-  // border
+  // border, with raised ceiling (can't seem to really draw past the canvas sadly)
   pg_obstacles.fill(0, 255);
-  pg_obstacles.rect(0, 0, w, h);        // outer boundary? (adjust this too or else your particles will pour out)
-      // to-do: push boundaries up slightly
+  pg_obstacles.rect(0, -10, w, h);  // outer boundary
   pg_obstacles.fill(0, 0);
-  pg_obstacles.rect(10, 10, w-20, h-20);  // sets the bounding box (can be much smaller as long as contained by above)
+  pg_obstacles.rect(10, 0, w-10, h-10);  // inner boundary (leave enough padding or else particles will jump through if they're going fast enough - just like unity)
 
-  // animated obstacles
-  //pg_obstacles.rectMode(CENTER);
-  //pg_obstacles.pushMatrix();
-  //{
-  //  float px = sin(frameCount/240f) * 0.8f * w/2;
-  //  pg_obstacles.translate(w/2 + px, h/2);
-  //  pg_obstacles.rotate(frameCount/120f);
-  //  pg_obstacles.fill(0, 255);
-  //  pg_obstacles.rect(0, 0,  10, dim);
-  //}
-  //pg_obstacles.popMatrix();
   pg_obstacles.endDraw();
 }
 
