@@ -80,6 +80,8 @@ import processing.opengl.PGraphics2D;
 
 import KinectPV2.*;
 
+import processing.sound.*;
+
 
 int viewport_w = 1920;  //1280
 int viewport_h = 1080;  //720
@@ -100,6 +102,9 @@ DwFlowField ff_impulse;
 DwFilter filter;
 
 float gravity = 1;
+
+//SoundFile[] waveSounds;
+SoundFile waveSound;
 
 KinectPV2 kinect;
 ArrayList<KSkeleton> skeletonArray;
@@ -200,6 +205,9 @@ public void setup() {
   
   pg_luminance = (PGraphics2D) createGraphics(width, height, P2D);
   pg_luminance.smooth(0);
+  
+  
+  waveSound = new SoundFile(this, "442944__qubodup__ocean-wave__edit_mono.wav");
   
   
   kinect = new KinectPV2(this);
@@ -340,9 +348,7 @@ public void draw() {
   particles.param.timestep = 1f/frameRate;
 
   updateScene();
-
-  //spawnParticles();
-
+  
   addImpulse();
 
   addGravity();
@@ -356,21 +362,21 @@ public void draw() {
   pg_canvas.beginDraw();
   pg_canvas.background(0);
   pg_canvas.image(pg_obstacles, 0, 0);
+  
   // + hand indicators
-  /*
   for (int i = 0; i < waterbenders.length; i++) {
   //for (int i = 0; i < skeletonArray.size(); i++) {
     //KSkeleton skeleton = (KSkeleton) skeletonArray.get(i);
     //if (skeleton.isTracked()) {
       for (Hand hand : waterbenders[i].hands) {   
-        pg_canvas.stroke(255, 100);
-        pg_canvas.strokeWeight(8);
+        pg_canvas.stroke(99, 224, 255, 255);
+        pg_canvas.strokeWeight(4);
         pg_canvas.noFill();
         pg_canvas.ellipse(hand.scaledX, hand.scaledY, 70, 70);
       }
     //}
   }
-  */
+  
   pg_canvas.endDraw();
   particles.displayParticles(pg_canvas);
   
@@ -379,6 +385,11 @@ public void draw() {
   blendMode(REPLACE);
   image(pg_canvas, 0, 0);
   blendMode(BLEND);
+  
+  if (mousePressed && !waveSound.isPlaying()) {
+    waveSound.pan( map(mouseX, 0, width, -1.0, 1.0) );
+    waveSound.play();
+  }
 
   String txt_fps = String.format(Locale.ENGLISH, "[%s]   [%7.2f fps]   [particles %,d] ", getClass().getSimpleName(), frameRate, particles.getCount() );
   surface.setTitle(txt_fps);
