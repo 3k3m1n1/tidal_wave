@@ -95,8 +95,12 @@ int   impulse_blur  = 0;
 
 float gravity = 1;
 
-//SoundFile[] waveSounds;
-SoundFile waveSound;
+SoundFile[] waveSounds;
+String[] waveFiles = {
+  "442944__qubodup__ocean-wave__edit1.wav", 
+  "442944__qubodup__ocean-wave__edit1.wav",
+  "587078__danielwalsh__wave__edit.wav"
+};
 
 KinectPV2 kinect;
 ArrayList<KSkeleton> skeletonArray;
@@ -152,7 +156,6 @@ public void setup() {
 
   particles = new DwFlowFieldParticles(context, 1024 * 1024);
 
-  // blue! *-*
   particles.param.col_A = new float[]{0.10f, 0.50f, 1.00f, 1};
   particles.param.col_B = new float[]{0.05f, 0.25f, 0.50f, 0};
 
@@ -196,8 +199,6 @@ public void setup() {
   pg_luminance = (PGraphics2D) createGraphics(width, height, P2D);
   pg_luminance.smooth(0);
   
-  waveSound = new SoundFile(this, "442944__qubodup__ocean-wave__edit_mono.wav");
-  
   kinect = new KinectPV2(this);
   kinect.enableSkeletonDepthMap(true);
   kinect.init();
@@ -207,10 +208,15 @@ public void setup() {
     waterbenders[i] = new Person();
   }
   
-  spawnParticles();
+  waveSounds = new SoundFile[waveFiles.length];
+  for (int i = 0; i < waveFiles.length; i++) {
+    waveSounds[i] = new SoundFile(this, waveFiles[i]);
+  }
   
   frameRate(1000);
   noCursor();
+  
+  spawnParticles();
 } //<>//
 
 public void draw() {
@@ -219,17 +225,17 @@ public void draw() {
 
   addObstacles();
   addImpulse();
-  addGravity();
+  addGravity(); //<>//
   
   triggerSoundEffects();
 
-  updateParticles();
+  updateParticles(); //<>//
   renderScene();
-   //<>//
+  
   // debug: write stats to window title
   String txt_fps = String.format(Locale.ENGLISH, "[%s]   [%7.2f fps]   [particles %,d] ", getClass().getSimpleName(), frameRate, particles.getCount() );
   surface.setTitle(txt_fps);
-} //<>//
+}
 
 public void addObstacles() {
 
@@ -371,9 +377,11 @@ public void updateParticles() {
 }
 
 public void triggerSoundEffects() {
-  if (mousePressed && !waveSound.isPlaying()) {
-    waveSound.pan( map(mouseX, 0, width, -1.0, 1.0) );
-    waveSound.play();
+  //if (mousePressed && !waveSound.isPlaying()) {    // i'll bring this back somehow soon
+  if (mousePressed) {
+    int random = int(random(waveSounds.length));
+    waveSounds[random].pan( map(mouseX, 0, width, -1.0, 1.0) );
+    waveSounds[random].play();
   }
 }
 
