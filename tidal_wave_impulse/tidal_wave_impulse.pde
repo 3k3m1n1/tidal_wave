@@ -28,44 +28,31 @@
  [*] add gravity
  [*] explore particle shaders + blend modes
  [*] play with bloom
- [ ] how many particles should we start with?
+ [*] how many particles should we start with?
  
  [*] import kinect library
  [*] make hand apply impulse instead of mouseX/Y
    [*] okay now do two hands (left and right)
  [*] map skeleton depth coordinates from 512x424 to full window
  [*] add support for multiple skeletons (in case people step into the circle with their kids)
-   [ ] should i specify a cut-off depth so that the audience isn't tracked?
+ [ ] should i specify a cut-off depth so that the audience isn't tracked?
 
  [ ] idle state: turbulent waves? come up with some kind of motion to draw people in 
 
  [ ] ??interactive sound??
- (start off realistic, then remix / abstract it - samplefocus is your friend)
+       (start off realistic, then remix / abstract it - samplefocus is your friend)
 
- [ ] subtle/elegant hand indicators?
-       not just for debugging, but to give feedback to participants (whether they're tech-savvy or not)
+ [*] hand indicators? good idea to give feedback to participants
+   [ ] any way to make them more subtle? or not some debugging eyesore?
 
  
  EXTRAS:
 
  [ ] oooh the glitched particles made that ocean-filtering-through-sand effect...
        spawn some invisible dot obstacles on purpose?
- 
  [ ] sprite swap?
- [ ] background treatment?
-     *how do i get the background to have a soft blurry fill where particles just passed??
-        translucent backgrounds didn't work the first time i tried - probably bc of the way we're creating/applying the PGraphics
-        (+ it would look like hard lines anyway, which isn't the look i'm going for)
-       
-       would i be proccessing previous frames with a gaussian blur pass of some sort?
-         (how slow is that?)
-       
-       if anything maybe just throw a video of the effect you want back there??? (i hate this idea)
  
- [ ] i really loved the attractor effect - maybe there's a *cough* avatar effect where for a brief period of time (random or manually triggered) your control switches from impulses to attractors
- (less like pushing waves to shore, more like guiding a water whip)
- 
- */
+*/
   
 import java.util.Locale;
 
@@ -101,6 +88,11 @@ DwFlowField ff_acc;
 DwFlowField ff_impulse;
 DwFilter filter;
 
+float impulse_max = 556;  // 556
+float impulse_mul = 15;
+float impulse_tsmooth = 0.90f;
+int   impulse_blur  = 0;
+
 float gravity = 1;
 
 //SoundFile[] waveSounds;
@@ -109,7 +101,6 @@ SoundFile waveSound;
 KinectPV2 kinect;
 ArrayList<KSkeleton> skeletonArray;
 Person[] waterbenders;
-
 
 class Hand {
   float scaledX, scaledY;
@@ -190,7 +181,6 @@ public void setup() {
   ff_impulse.param.blur_iterations = 1;
   ff_impulse.param.blur_radius     = 1;
 
-
   pg_canvas = (PGraphics2D) createGraphics(width, height, P2D);
   pg_canvas.smooth(0);
 
@@ -206,31 +196,60 @@ public void setup() {
   pg_luminance = (PGraphics2D) createGraphics(width, height, P2D);
   pg_luminance.smooth(0);
   
-  
   waveSound = new SoundFile(this, "442944__qubodup__ocean-wave__edit_mono.wav");
-  
   
   kinect = new KinectPV2(this);
   kinect.enableSkeletonDepthMap(true);
   kinect.init();
-  
   
   waterbenders = new Person[6];
   for (int i = 0; i < waterbenders.length; i++) {
     waterbenders[i] = new Person();
   }
   
-  
-  noCursor();
-  frameRate(1000);
   spawnParticles();
+  
+  frameRate(1000);
+  noCursor();
+} //<>//
+
+public void draw() {
+
+  particles.param.timestep = 1f/frameRate;
+
+  addObstacles();
+  addImpulse();
+  addGravity();
+  
+  triggerSoundEffects();
+
+  updateParticles();
+  renderScene();
+   //<>//
+  // debug: write stats to window title
+  String txt_fps = String.format(Locale.ENGLISH, "[%s]   [%7.2f fps]   [particles %,d] ", getClass().getSimpleName(), frameRate, particles.getCount() );
+  surface.setTitle(txt_fps);
+} //<>//
+
+public void addObstacles() {
+
+  int w = pg_obstacles.width;
+  int h = pg_obstacles.height;
+
+  pg_obstacles.beginDraw();
+  pg_obstacles.clear();
+  pg_obstacles.noStroke();
+  pg_obstacles.blendMode(REPLACE);
+  pg_obstacles.rectMode(CORNERS);  // so much easier
+
+  // border, with raised ceiling (can't seem to really draw past the canvas sadly)
+  pg_obstacles.fill(0, 255);
+  pg_obstacles.rect(0, -10, w, h);  // outer boundary
+  pg_obstacles.fill(0, 0);
+  pg_obstacles.rect(10, 0, w-10, h-10);  // inner boundary (leave enough padding or else particles will jump through if they're going fast enough - just like unity)
+
+  pg_obstacles.endDraw();
 }
-
-
-float impulse_max = 556;
-float impulse_mul = 15;
-float impulse_tsmooth = 0.90f;
-int   impulse_blur  = 0;
 
 public void addImpulse() {
 
@@ -252,15 +271,17 @@ public void addImpulse() {
   for (int i = 0; i < skeletonArray.size(); i++) {
     KSkeleton skeleton = (KSkeleton) skeletonArray.get(i);
     if (skeleton.isTracked()) {                                 //if (mousePressed) {
+      
       // get impulse center
       KJoint[] joints = skeleton.getJoints();
       waterbenders[i].hands[0].updatePos( joints[KinectPV2.JointType_HandLeft] );
       waterbenders[i].hands[1].updatePos( joints[KinectPV2.JointType_HandRight] );
       
-      for (Hand hand : waterbenders[i].hands) {     //<>//
+      for (Hand hand : waterbenders[i].hands) {    
+        
         // calculate impulse velocity
-        vx = (hand.scaledX - hand.prevX) * +impulse_mul;                           //vx = (mouseX - pmouseX) * +impulse_mul; //<>//
-        vy = (hand.scaledY - hand.prevY) * -impulse_mul;  // flip vertically       //vy = (mouseY - pmouseY) * -impulse_mul; //<>//
+        vx = (hand.scaledX - hand.prevX) * +impulse_mul;                           //vx = (mouseX - pmouseX) * +impulse_mul;
+        vy = (hand.scaledY - hand.prevY) * -impulse_mul;  // flip vertically       //vy = (mouseY - pmouseY) * -impulse_mul;
         
         // clamp velocity
         float vv_sq = vx*vx + vy*vy;
@@ -281,8 +302,8 @@ public void addImpulse() {
         }
         
         // save kinect hand position for next velocity calc
-        hand.prevX = hand.scaledX; //<>//
-        hand.prevY = hand.scaledY; //<>//
+        hand.prevX = hand.scaledX;
+        hand.prevY = hand.scaledY;
         
       }  // end of hands for loop
     }  // end of if(skeleton.isTracked())
@@ -343,27 +364,26 @@ public void addGravity() {
   }
 }
 
-public void draw() {
-
-  particles.param.timestep = 1f/frameRate;
-
-  updateScene();
-  
-  addImpulse();
-
-  addGravity();
-
-  // update particle simulation
+public void updateParticles() {
   particles.resizeWorld(width, height);
   particles.createObstacleFlowField(pg_obstacles, new int[]{0, 0, 0, 255}, false);
   particles.update(ff_acc);
+}
 
-  // render obstacles + particles
+public void triggerSoundEffects() {
+  if (mousePressed && !waveSound.isPlaying()) {
+    waveSound.pan( map(mouseX, 0, width, -1.0, 1.0) );
+    waveSound.play();
+  }
+}
+
+public void renderScene() {
+  // render obstacles
   pg_canvas.beginDraw();
   pg_canvas.background(0);
   pg_canvas.image(pg_obstacles, 0, 0);
   
-  // + hand indicators
+  // render hand indicators
   for (int i = 0; i < waterbenders.length; i++) {
   //for (int i = 0; i < skeletonArray.size(); i++) {
     //KSkeleton skeleton = (KSkeleton) skeletonArray.get(i);
@@ -376,46 +396,27 @@ public void draw() {
       }
     //}
   }
-  
   pg_canvas.endDraw();
+  
+  // render particles
   particles.displayParticles(pg_canvas);
   
-  addBloom();
-
+  // post-processing (bloom!)
+  filter.luminance_threshold.param.threshold = 0.48f;  // when 0, all colors are used
+  filter.luminance_threshold.param.exponent  = 5;
+  filter.luminance_threshold.apply(pg_canvas, pg_luminance);
+  filter.bloom.setBlurLayers(10);
+  filter.bloom.gaussianpyramid.setBlurLayers(10);
+  filter.bloom.param.blur_radius = 1;
+  filter.bloom.param.mult   = 0.7f; 
+  filter.bloom.param.radius = 0.3f;
+  filter.bloom.apply(pg_luminance, null, pg_canvas);
+  
+  // draw final image to screen
   blendMode(REPLACE);
   image(pg_canvas, 0, 0);
   blendMode(BLEND);
-  
-  if (mousePressed && !waveSound.isPlaying()) {
-    waveSound.pan( map(mouseX, 0, width, -1.0, 1.0) );
-    waveSound.play();
-  }
-
-  String txt_fps = String.format(Locale.ENGLISH, "[%s]   [%7.2f fps]   [particles %,d] ", getClass().getSimpleName(), frameRate, particles.getCount() );
-  surface.setTitle(txt_fps);
 }
-
-
-void updateScene() {
-
-  int w = pg_obstacles.width;
-  int h = pg_obstacles.height;
-
-  pg_obstacles.beginDraw();
-  pg_obstacles.clear();
-  pg_obstacles.noStroke();
-  pg_obstacles.blendMode(REPLACE);
-  pg_obstacles.rectMode(CORNERS);  // so much easier
-
-  // border, with raised ceiling (can't seem to really draw past the canvas sadly)
-  pg_obstacles.fill(0, 255);
-  pg_obstacles.rect(0, -10, w, h);  // outer boundary
-  pg_obstacles.fill(0, 0);
-  pg_obstacles.rect(10, 0, w-10, h-10);  // inner boundary (leave enough padding or else particles will jump through if they're going fast enough - just like unity)
-
-  pg_obstacles.endDraw();
-}
-
 
 public void spawnParticles() {
 
@@ -439,18 +440,4 @@ public void spawnParticles() {
   sr.vel(vx, vy);
   particles.spawn(vw, vh, sr);
 
-}
-
-public void addBloom() {
-  
-  filter.luminance_threshold.param.threshold = 0.48f; // when 0, all colors are used
-  filter.luminance_threshold.param.exponent  = 5;
-  filter.luminance_threshold.apply(pg_canvas, pg_luminance);
-      
-  filter.bloom.setBlurLayers(10);
-  filter.bloom.gaussianpyramid.setBlurLayers(10);
-  filter.bloom.param.blur_radius = 1;
-  filter.bloom.param.mult   = 0.7f; 
-  filter.bloom.param.radius = 0.3f;
-  filter.bloom.apply(pg_luminance, null, pg_canvas);
 }
