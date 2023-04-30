@@ -302,6 +302,12 @@ public void addImpulse() {
         vx = (hand.scaledX - hand.prevX) * +impulse_mul;                           //vx = (mouseX - pmouseX) * +impulse_mul;
         vy = (hand.scaledY - hand.prevY) * -impulse_mul;  // flip vertically       //vy = (mouseY - pmouseY) * -impulse_mul;
         
+        // trigger wave sound effects with side-to-side movement
+        // (only counts if hands are "below sea level")
+        if (vx > vx_threshold && hand.scaledX > height/2) {
+          triggerSoundEffect(hand.scaledX);
+        }
+        
         // clamp velocity
         float vv_sq = vx*vx + vy*vy;
         float vv_sq_max = impulse_max*impulse_max;
@@ -317,7 +323,7 @@ public void addImpulse() {
         // finally... draw impulse 
         if (vv_sq != 0) {
           pg_impulse.fill(mid+vx, mid+vy, 0);
-          pg_impulse.ellipse(hand.scaledX, hand.scaledY, 300, 300);               //pg_impulse.ellipse(mx, my, 300, 300);
+          pg_impulse.ellipse(hand.scaledX, hand.scaledY, 300, 300);               //pg_impulse.ellipse(mouseX, mouseY, 300, 300);
         }
         
         // save kinect hand position for next velocity calc
@@ -330,14 +336,12 @@ public void addImpulse() {
   
   // fallback: mouse controls for development / debugging
   // impulse center/velocity
-  float mx = mouseX;
-  float my = mouseY;
   vx = (mouseX - pmouseX) * +impulse_mul;
   vy = (mouseY - pmouseY) * -impulse_mul; // flip vertically
   
-  // trigger wave sound effects based on horizontal velocity
-  // (only counts if hands are below "sea level")
-  if (vx > vx_threshold && my > height/2) {
+  // trigger wave sound effects with side-to-side movement
+  // (only counts if hands are "below sea level")
+  if (vx > vx_threshold && mouseX > height/2) {
     triggerSoundEffect(mouseX);
   }
   
@@ -354,7 +358,7 @@ public void addImpulse() {
   vy = 127 * vy / impulse_max;
   if (vv_sq != 0) {
     pg_impulse.fill(mid+vx, mid+vy, 0);
-    pg_impulse.ellipse(mx, my, 300, 300);  //pg_impulse.ellipse(mx, my, 100, 100);
+    pg_impulse.ellipse(mouseX, mouseY, 300, 300);
   }
   pg_impulse.endDraw();
 
@@ -461,47 +465,6 @@ public void spawnParticles() {
 }
 
 public void triggerSoundEffect(float x) {
-  //int r = int(random(waveSounds.length));
-  //waveSounds[r].pan( map(x, 0, width, -1.0, 1.0) );
-  //if (!waveSounds[r].isPlaying()) {
-  //  waveSounds[r].play();
-  //}
-  
-  
-  //if (!waveSound.isPlaying()) {
-  //  waveSound.pan( map(x, 0, width, -1.0, 1.0) );
-  //  waveSound.play();
-  //}
-  
-  
-  //waveSound.pan(map(x, 0, width, -1.0, 1.0));
-  //if (!waveSound.isPlaying()) {
-  //  waveSound.play();
-  //}
-  
-  
-  //timer = millis() / 1000 - timerStart;    // counts up from 0
-  //countdown = countdownStart - timer;      // counts down from cd start time
-  
-  //waveSound.pan(map(x, 0, width, -1.0, 1.0));
-  //if (countdown < 0) {
-  //  waveSound.play();
-  //  timerStart = millis() / 1000;  // reset timer
-  //}
-  
-  
-  //int r = int(random(waveSounds.length));
-  
-  //timer = millis() / 1000 - timerStart;    // counts up from 0
-  //countdown = countdownStart - timer;      // counts down from cd start time
-  
-  //waveSounds[r].pan(map(x, 0, width, -1.0, 1.0));  // ***this won't work. sometimes it'll target the wrong one
-  //if (countdown < 0) {
-  //  waveSounds[r].play();
-  //  timerStart = millis() / 1000;  // reset timer
-  //}
-  
-  
   timer = millis() / 1000 - timerStart;    // counts up from 0
   countdown = countdownStart - timer;      // counts down from cd start time
   
@@ -511,5 +474,4 @@ public void triggerSoundEffect(float x) {
     waveSounds[random].play();
     timerStart = millis() / 1000;  // reset timer
   }
-  
 }
