@@ -90,20 +90,20 @@ float impulse_max = 556;
 float impulse_mul = 15;
 float impulse_tsmooth = 0.90f;
 int   impulse_blur  = 0;
-float vx_threshold = 100;
+float vx_threshold = 30;
 
 float timer = 0;
 float timerStart = 0;
 float countdown = 0;
-float countdownStart = 0.4;  // seconds
+float countdownStart = 0.3;  // seconds
 
 SoundFile[] waveSounds;
 String[] waveFiles = {
   "442944__qubodup__ocean-wave__edit1.wav", 
-  "442944__qubodup__ocean-wave__edit1.wav",
+  "442944__qubodup__ocean-wave__edit2.wav",
   "587078__danielwalsh__wave__edit.wav"
 };
-SoundFile waveSound;
+int random = 0;
 
 KinectPV2 kinect;
 ArrayList<KSkeleton> skeletonArray;
@@ -149,8 +149,10 @@ public void settings() {
 }
 
 public void setup() {
+  // move sketch window
   surface.setLocation(viewport_x, viewport_y);
 
+  // particles setup
   context = new DwPixelFlow(this);
   context.print();
   context.printGL();
@@ -222,7 +224,6 @@ public void setup() {
   for (int i = 0; i < waveFiles.length; i++) {
     waveSounds[i] = new SoundFile(this, waveFiles[i]);
   }
-  waveSound = new SoundFile(this, "587078__danielwalsh__wave__edit.wav");
   
   // some final settings:
   frameRate(1000);
@@ -247,6 +248,7 @@ public void draw() {
   String txt_fps = String.format(Locale.ENGLISH, "[%s]   [%7.2f fps]   [particles %,d] ", getClass().getSimpleName(), frameRate, particles.getCount() );
   surface.setTitle(txt_fps);
 }
+
 
 public void addObstacles() {
 
@@ -287,7 +289,7 @@ public void addImpulse() {
   skeletonArray = kinect.getSkeletonDepthMap();
   for (int i = 0; i < skeletonArray.size(); i++) {
     KSkeleton skeleton = (KSkeleton) skeletonArray.get(i);
-    if (skeleton.isTracked()) {                                 //if (mousePressed) {
+    if (skeleton.isTracked()) {
       
       // get impulse center
       KJoint[] joints = skeleton.getJoints();
@@ -315,7 +317,7 @@ public void addImpulse() {
         // finally... draw impulse 
         if (vv_sq != 0) {
           pg_impulse.fill(mid+vx, mid+vy, 0);
-          pg_impulse.ellipse(hand.scaledX, hand.scaledY, 300, 300);                         //pg_impulse.ellipse(mx, my, 300, 300);
+          pg_impulse.ellipse(hand.scaledX, hand.scaledY, 300, 300);               //pg_impulse.ellipse(mx, my, 300, 300);
         }
         
         // save kinect hand position for next velocity calc
@@ -326,49 +328,34 @@ public void addImpulse() {
     }  // end of if(skeleton.isTracked())
   }  // end of skeletons for loop
   
-  // fallback:
-  //if (mousePressed) {
-    // impulse center/velocity
-    float mx = mouseX;
-    float my = mouseY;
-    vx = (mouseX - pmouseX) * +impulse_mul;
-    vy = (mouseY - pmouseY) * -impulse_mul; // flip vertically
-    
-    //*
-    // trigger wave sound effects based on horizontal velocity
-    if (vx > vx_threshold) {
-      triggerSoundEffect(mouseX);
-    }
-    //*
-    
-    // clamp velocity
-    float vv_sq = vx*vx + vy*vy;
-    float vv_sq_max = impulse_max*impulse_max;
-    if (vv_sq > vv_sq_max) {
-      vx = impulse_max * vx / sqrt(vv_sq);
-      vy = impulse_max * vy / sqrt(vv_sq);
-    }
-    // map velocity, to UNSIGNED_BYTE range
-    vx = 127 * vx / impulse_max;
-    vy = 127 * vy / impulse_max;
-    //if (mousePressed) {          // *
-    if (vv_sq != 0) {
-      pg_impulse.fill(mid+vx, mid+vy, 0);
-      pg_impulse.ellipse(mx, my, 300, 300);  //pg_impulse.ellipse(mx, my, 100, 100);
-    }
-    
-    // trigger sound effect with prev?
-    //if (vv_sq > vv_threshold && prev_vv_sq < vv_threshold) {
-    //if (vv_sq > vv_threshold && (vv_threshold - prev_vv_sq) > 10000) {
-    //if (vv_sq - prev_vv_sq > 500000) {
-    //if (vv_sq > vv_threshold && (vv_threshold - prev_vv_sq) > (vv_threshold/2) ) {
-    //if () {
-    //  triggerSoundEffect(mouseX);
-    //}
-    //print(vv_sq - prev_vv_sq > 500000);
-    //prev_vv_sq = vv_sq;
-    
-  //}  // end of if(mousePressed)
+  // fallback: mouse controls for development / debugging
+  // impulse center/velocity
+  float mx = mouseX;
+  float my = mouseY;
+  vx = (mouseX - pmouseX) * +impulse_mul;
+  vy = (mouseY - pmouseY) * -impulse_mul; // flip vertically
+  
+  // trigger wave sound effects based on horizontal velocity
+  // (only counts if hands are below "sea level")
+  if (vx > vx_threshold && my > height/2) {
+    triggerSoundEffect(mouseX);
+  }
+  
+  // clamp velocity
+  float vv_sq = vx*vx + vy*vy;
+  float vv_sq_max = impulse_max*impulse_max;
+  if (vv_sq > vv_sq_max) {
+    vx = impulse_max * vx / sqrt(vv_sq);
+    vy = impulse_max * vy / sqrt(vv_sq);
+  }
+  
+  // map velocity, to UNSIGNED_BYTE range
+  vx = 127 * vx / impulse_max;
+  vy = 127 * vy / impulse_max;
+  if (vv_sq != 0) {
+    pg_impulse.fill(mid+vx, mid+vy, 0);
+    pg_impulse.ellipse(mx, my, 300, 300);  //pg_impulse.ellipse(mx, my, 100, 100);
+  }
   pg_impulse.endDraw();
 
   // create impulse texture
@@ -480,22 +467,48 @@ public void triggerSoundEffect(float x) {
   //  waveSounds[r].play();
   //}
   
+  
   //if (!waveSound.isPlaying()) {
   //  waveSound.pan( map(x, 0, width, -1.0, 1.0) );
   //  waveSound.play();
   //}
+  
   
   //waveSound.pan(map(x, 0, width, -1.0, 1.0));
   //if (!waveSound.isPlaying()) {
   //  waveSound.play();
   //}
   
+  
+  //timer = millis() / 1000 - timerStart;    // counts up from 0
+  //countdown = countdownStart - timer;      // counts down from cd start time
+  
+  //waveSound.pan(map(x, 0, width, -1.0, 1.0));
+  //if (countdown < 0) {
+  //  waveSound.play();
+  //  timerStart = millis() / 1000;  // reset timer
+  //}
+  
+  
+  //int r = int(random(waveSounds.length));
+  
+  //timer = millis() / 1000 - timerStart;    // counts up from 0
+  //countdown = countdownStart - timer;      // counts down from cd start time
+  
+  //waveSounds[r].pan(map(x, 0, width, -1.0, 1.0));  // ***this won't work. sometimes it'll target the wrong one
+  //if (countdown < 0) {
+  //  waveSounds[r].play();
+  //  timerStart = millis() / 1000;  // reset timer
+  //}
+  
+  
   timer = millis() / 1000 - timerStart;    // counts up from 0
   countdown = countdownStart - timer;      // counts down from cd start time
   
-  waveSound.pan(map(x, 0, width, -1.0, 1.0));
+  waveSounds[random].pan(map(x, 0, width, -1.0, 1.0));
   if (countdown < 0) {
-    waveSound.play();
+    random = int(random(waveSounds.length));  // pick a new sound at random
+    waveSounds[random].play();
     timerStart = millis() / 1000;  // reset timer
   }
   
