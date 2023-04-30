@@ -36,21 +36,17 @@
  [*] map skeleton depth coordinates from 512x424 to full window
  [*] add support for multiple skeletons (in case people step into the circle with their kids)
  [ ] should i specify a cut-off depth so that the audience isn't tracked?
-
- [ ] idle state: turbulent waves? come up with some kind of motion to draw people in 
-
- [ ] ??interactive sound??
-       (start off realistic, then remix / abstract it - samplefocus is your friend)
-
- [*] hand indicators? good idea to give feedback to participants
-   [ ] any way to make them more subtle? or not some debugging eyesore?
-
+ 
  
  EXTRAS:
+ [*] interactive sound??
 
- [ ] oooh the glitched particles made that ocean-filtering-through-sand effect...
-       spawn some invisible dot obstacles on purpose?
- [ ] sprite swap?
+ [*] hand indicators? good idea to give feedback to participants
+   [ ] any way to make them more subtle? or at least not some debugging eyesore?
+ 
+ [ ] idle state: turbulent waves? come up with some kind of motion to draw people in 
+ 
+ [ ] ...sprite swap?
  
 */
   
@@ -88,12 +84,18 @@ DwFlowField ff_acc;
 DwFlowField ff_impulse;
 DwFilter filter;
 
-float impulse_max = 556;  // 556
+float gravity = 1;
+
+float impulse_max = 556;
 float impulse_mul = 15;
 float impulse_tsmooth = 0.90f;
 int   impulse_blur  = 0;
+float vx_threshold = 100;
 
-float gravity = 1;
+float timer = 0;
+float timerStart = 0;
+float countdown = 0;
+float countdownStart = 0.4;  // seconds
 
 SoundFile[] waveSounds;
 String[] waveFiles = {
@@ -101,6 +103,7 @@ String[] waveFiles = {
   "442944__qubodup__ocean-wave__edit1.wav",
   "587078__danielwalsh__wave__edit.wav"
 };
+SoundFile waveSound;
 
 KinectPV2 kinect;
 ArrayList<KSkeleton> skeletonArray;
@@ -114,8 +117,8 @@ class Hand {
     scaledX = 0;
     scaledY = 0;
     
-    prevX = width / 2;
-    prevY = height / 2;
+    prevX = 0;
+    prevY = 0;
   }
   
   void updatePos(KJoint joint) {
@@ -199,23 +202,33 @@ public void setup() {
   pg_luminance = (PGraphics2D) createGraphics(width, height, P2D);
   pg_luminance.smooth(0);
   
+  // initialize kinect
   kinect = new KinectPV2(this);
   kinect.enableSkeletonDepthMap(true);
   kinect.init();
   
+  // and objects to store hand positions in
   waterbenders = new Person[6];
   for (int i = 0; i < waterbenders.length; i++) {
     waterbenders[i] = new Person();
   }
   
+  // start timer
+  timerStart = millis() / 1000;
+  countdown  = countdownStart;
+  
+  // load sounds from data folder
   waveSounds = new SoundFile[waveFiles.length];
   for (int i = 0; i < waveFiles.length; i++) {
     waveSounds[i] = new SoundFile(this, waveFiles[i]);
   }
+  waveSound = new SoundFile(this, "587078__danielwalsh__wave__edit.wav");
   
+  // some final settings:
   frameRate(1000);
   noCursor();
   
+  // alright let's do this
   spawnParticles();
 } //<>//
 
@@ -226,8 +239,6 @@ public void draw() {
   addObstacles();
   addImpulse();
   addGravity(); //<>//
-  
-  triggerSoundEffects();
 
   updateParticles(); //<>//
   renderScene();
@@ -285,7 +296,7 @@ public void addImpulse() {
       
       for (Hand hand : waterbenders[i].hands) {    
         
-        // calculate impulse velocity
+        // calculate velocity
         vx = (hand.scaledX - hand.prevX) * +impulse_mul;                           //vx = (mouseX - pmouseX) * +impulse_mul;
         vy = (hand.scaledY - hand.prevY) * -impulse_mul;  // flip vertically       //vy = (mouseY - pmouseY) * -impulse_mul;
         
@@ -316,12 +327,20 @@ public void addImpulse() {
   }  // end of skeletons for loop
   
   // fallback:
-  if (mousePressed) {
+  //if (mousePressed) {
     // impulse center/velocity
     float mx = mouseX;
     float my = mouseY;
     vx = (mouseX - pmouseX) * +impulse_mul;
     vy = (mouseY - pmouseY) * -impulse_mul; // flip vertically
+    
+    //*
+    // trigger wave sound effects based on horizontal velocity
+    if (vx > vx_threshold) {
+      triggerSoundEffect(mouseX);
+    }
+    //*
+    
     // clamp velocity
     float vv_sq = vx*vx + vy*vy;
     float vv_sq_max = impulse_max*impulse_max;
@@ -332,11 +351,24 @@ public void addImpulse() {
     // map velocity, to UNSIGNED_BYTE range
     vx = 127 * vx / impulse_max;
     vy = 127 * vy / impulse_max;
+    //if (mousePressed) {          // *
     if (vv_sq != 0) {
       pg_impulse.fill(mid+vx, mid+vy, 0);
       pg_impulse.ellipse(mx, my, 300, 300);  //pg_impulse.ellipse(mx, my, 100, 100);
     }
-  }
+    
+    // trigger sound effect with prev?
+    //if (vv_sq > vv_threshold && prev_vv_sq < vv_threshold) {
+    //if (vv_sq > vv_threshold && (vv_threshold - prev_vv_sq) > 10000) {
+    //if (vv_sq - prev_vv_sq > 500000) {
+    //if (vv_sq > vv_threshold && (vv_threshold - prev_vv_sq) > (vv_threshold/2) ) {
+    //if () {
+    //  triggerSoundEffect(mouseX);
+    //}
+    //print(vv_sq - prev_vv_sq > 500000);
+    //prev_vv_sq = vv_sq;
+    
+  //}  // end of if(mousePressed)
   pg_impulse.endDraw();
 
   // create impulse texture
@@ -345,7 +377,7 @@ public void addImpulse() {
     Merge.TexMad ta = new Merge.TexMad(ff_impulse.tex_vel, impulse_tsmooth, 0);
     Merge.TexMad tb = new Merge.TexMad(pg_impulse, 1, -mid/255f);
     DwFilter.get(context).merge.apply(ff_impulse.tex_vel, ta, tb);
-    ff_impulse.blur(1, impulse_blur);
+    //ff_impulse.blur(1, impulse_blur);
   }
 }
 
@@ -374,15 +406,6 @@ public void updateParticles() {
   particles.resizeWorld(width, height);
   particles.createObstacleFlowField(pg_obstacles, new int[]{0, 0, 0, 255}, false);
   particles.update(ff_acc);
-}
-
-public void triggerSoundEffects() {
-  //if (mousePressed && !waveSound.isPlaying()) {    // i'll bring this back somehow soon
-  if (mousePressed) {
-    int random = int(random(waveSounds.length));
-    waveSounds[random].pan( map(mouseX, 0, width, -1.0, 1.0) );
-    waveSounds[random].play();
-  }
 }
 
 public void renderScene() {
@@ -448,4 +471,32 @@ public void spawnParticles() {
   sr.vel(vx, vy);
   particles.spawn(vw, vh, sr);
 
+}
+
+public void triggerSoundEffect(float x) {
+  //int r = int(random(waveSounds.length));
+  //waveSounds[r].pan( map(x, 0, width, -1.0, 1.0) );
+  //if (!waveSounds[r].isPlaying()) {
+  //  waveSounds[r].play();
+  //}
+  
+  //if (!waveSound.isPlaying()) {
+  //  waveSound.pan( map(x, 0, width, -1.0, 1.0) );
+  //  waveSound.play();
+  //}
+  
+  //waveSound.pan(map(x, 0, width, -1.0, 1.0));
+  //if (!waveSound.isPlaying()) {
+  //  waveSound.play();
+  //}
+  
+  timer = millis() / 1000 - timerStart;    // counts up from 0
+  countdown = countdownStart - timer;      // counts down from cd start time
+  
+  waveSound.pan(map(x, 0, width, -1.0, 1.0));
+  if (countdown < 0) {
+    waveSound.play();
+    timerStart = millis() / 1000;  // reset timer
+  }
+  
 }
