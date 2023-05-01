@@ -1,4 +1,4 @@
-/*
+/**
       Tidal Wave
  by Ekemini Nkanta
  
@@ -42,11 +42,9 @@
  [*] interactive sound??
 
  [*] hand indicators? good idea to give feedback to participants
-   [ ] any way to make them more subtle? or at least not some debugging eyesore?
+   [?] any way to make them more subtle? or at least not some debugging eyesore?
  
  [ ] idle state: turbulent waves? come up with some kind of motion to draw people in 
- 
- [ ] ...sprite swap?
  
 */
   
@@ -66,9 +64,9 @@ import KinectPV2.*;
 import processing.sound.*;
 
 
-int viewport_w = 1920;  //1280
-int viewport_h = 1080;  //720
-int viewport_x = 0;  //230
+int viewport_w = 1800;    // window scale
+int viewport_h = 1080;
+int viewport_x = 0;        //  window position
 int viewport_y = 0;
 
 PGraphics2D pg_canvas;
@@ -141,15 +139,17 @@ class Person {
 
 
 public void settings() {
-  //viewport_w = (int) min(viewport_w, displayWidth  * 0.9f);
-  //viewport_h = (int) min(viewport_h, displayHeight * 0.9f);
-  //size(viewport_w, viewport_h, P2D);
-  fullScreen(P2D, 1);
+  size(viewport_w, viewport_h, P2D);
+  
+  // or
+  
+  //fullScreen(P2D, 1);
   smooth(0);
 }
 
 public void setup() {
   // move sketch window
+  //viewport_x = displayWidth / 2;
   surface.setLocation(viewport_x, viewport_y);
 
   // particles setup
@@ -406,18 +406,20 @@ public void renderScene() {
   pg_canvas.image(pg_obstacles, 0, 0);
   
   // render hand indicators
+  /*
   for (int i = 0; i < waterbenders.length; i++) {
   //for (int i = 0; i < skeletonArray.size(); i++) {
     //KSkeleton skeleton = (KSkeleton) skeletonArray.get(i);
     //if (skeleton.isTracked()) {
       for (Hand hand : waterbenders[i].hands) {   
         pg_canvas.stroke(99, 224, 255, 255);
-        pg_canvas.strokeWeight(4);
+        pg_canvas.strokeWeight(6);
         pg_canvas.noFill();
         pg_canvas.ellipse(hand.scaledX, hand.scaledY, 70, 70);
       }
     //}
   }
+  */
   pg_canvas.endDraw();
   
   // render particles
