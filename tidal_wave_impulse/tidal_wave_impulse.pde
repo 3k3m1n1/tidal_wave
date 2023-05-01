@@ -63,6 +63,8 @@ import KinectPV2.*;
 
 import processing.sound.*;
 
+import spout.*;
+
 
 int viewport_w = 1800;    // window scale
 int viewport_h = 1080;
@@ -81,6 +83,8 @@ DwFlowFieldParticles particles;
 DwFlowField ff_acc;
 DwFlowField ff_impulse;
 DwFilter filter;
+
+Spout spout;
 
 float gravity = 1.46;
 
@@ -214,6 +218,11 @@ public void setup() {
   for (int i = 0; i < waterbenders.length; i++) {
     waterbenders[i] = new Person();
   }
+  
+  // set up spout
+  spout = new Spout(this);
+  spout.setSenderName("Processing - Tidal Wave");
+  spout.createSenderBuffer(256);  // shared memory for data exchange
   
   // start timer
   timerStart = millis() / 1000;
@@ -440,6 +449,11 @@ public void renderScene() {
   blendMode(REPLACE);
   image(pg_canvas, 0, 0);
   blendMode(BLEND);
+  
+  //send to spout
+  //spout.sendTexture();  // send the entire sketch window
+  // or
+  spout.sendTexture(pg_canvas);  // send a pgraphics texture
 }
 
 public void spawnParticles() {
