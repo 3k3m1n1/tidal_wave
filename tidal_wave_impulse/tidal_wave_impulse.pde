@@ -82,7 +82,7 @@ DwFlowField ff_acc;
 DwFlowField ff_impulse;
 DwFilter filter;
 
-float gravity = 1;
+float gravity = 1.46;
 
 float impulse_max = 556;
 float impulse_mul = 15;
