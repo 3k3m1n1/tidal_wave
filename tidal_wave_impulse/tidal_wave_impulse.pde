@@ -484,7 +484,8 @@ public void triggerSoundEffect(float x) {
   timer = millis() / 1000 - timerStart;    // counts up from 0
   countdown = countdownStart - timer;      // counts down from cd start time
   
-  waveSounds[random].pan(map(x, 0, width, -1.0, 1.0));
+  float location = map(x, 0, width, -1.0, 1.0);
+  waveSounds[random].pan(constrain(location, -1.0, 1.0));
   if (countdown < 0) {
     random = int(random(waveSounds.length));  // pick a new sound at random
     waveSounds[random].play();
