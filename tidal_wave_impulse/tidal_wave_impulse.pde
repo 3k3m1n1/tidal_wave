@@ -313,7 +313,7 @@ public void addImpulse() {
         
         // trigger wave sound effects with side-to-side movement
         // (only counts if hands are "below sea level")
-        if (vx > vx_threshold && hand.scaledX > height/2) {
+        if (vx > vx_threshold && hand.scaledY > height/2) {
           triggerSoundEffect(hand.scaledX);
         }
         
@@ -350,7 +350,7 @@ public void addImpulse() {
   
   // trigger wave sound effects with side-to-side movement
   // (only counts if hands are "below sea level")
-  if (vx > vx_threshold && mouseX > height/2) {
+  if (vx > vx_threshold && mouseY > height/2) {
     triggerSoundEffect(mouseX);
   }
   
@@ -464,7 +464,7 @@ public void spawnParticles() {
   vw = width;
   vh = height;
 
-  count = 30000;  // adjust as desired
+  count = 45000;  // adjust as desired
   radius = 200;
   px = vw/2f;
   py = 3 * vh/4f;
